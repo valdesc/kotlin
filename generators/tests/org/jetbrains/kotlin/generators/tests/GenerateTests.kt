@@ -1229,6 +1229,7 @@ fun main(args: Array<String>) {
             model("incremental/pureKotlin", extension = null, recursive = false)
             model("incremental/classHierarchyAffected", extension = null, recursive = false)
             model("incremental/js", extension = null, excludeParentDirs = true)
+            model("incremental/scopeExpansion", extension = null, excludeParentDirs = true)
         }
 
         testClass<AbstractIncrementalJsCompilerRunnerWithFriendModulesDisabledTest> {
