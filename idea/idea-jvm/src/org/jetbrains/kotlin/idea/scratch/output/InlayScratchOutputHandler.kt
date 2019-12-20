@@ -77,14 +77,16 @@ class InlayScratchOutputHandler(
                 if (shortText != text) {
                     printToToolWindow(file, expression, output)
                 }
-                editor.inlayModel.addInlay(
+                editor.inlayModel.addAfterLineEndElement(
                     lineEndOffset,
+                    false,
                     InlayScratchFileRenderer(" ".repeat(spaceCount) + shortText, output.type)
                 )
             }
 
             val existing = editor.inlayModel
-                .getInlays(lineEndOffset, lineEndOffset)
+                .getAfterLineEndElementsInRange(lineEndOffset, lineEndOffset)
+                .filter { it.renderer is InlayScratchFileRenderer }
                 .singleOrNull()
             if (existing != null) {
                 existing.dispose()
@@ -111,8 +113,9 @@ class InlayScratchOutputHandler(
 
     private fun clearInlays(editor: TextEditor) {
         TransactionGuard.submitTransaction(editor, Runnable {
-            editor
-                .editor.inlayModel.getInlays(0, editor.editor.document.textLength)
+            editor.editor.inlayModel
+                .getAfterLineEndElementsInRange(0, editor.editor.document.textLength)
+                .filter { it.renderer is InlayScratchFileRenderer }
                 .forEach { Disposer.dispose(it) }
         })
     }
