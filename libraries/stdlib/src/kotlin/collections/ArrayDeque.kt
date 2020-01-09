@@ -74,7 +74,7 @@ public class ArrayDeque<E>(capacity: Int) : AbstractMutableList<E>() {
     private fun ensureCapacity(minimumCapacity: Int) {
         if (minimumCapacity < elements.size) return
 
-        val newCapacity = minimumCapacity.takeHighestOneBit().let { if (it == minimumCapacity) it else it shl 1 }
+        val newCapacity = minimumCapacity.takeHighestOneBit() shl 1
         if (newCapacity < 0)
             throw IllegalStateException("Sorry, deque too big")
 
@@ -205,15 +205,15 @@ public class ArrayDeque<E>(capacity: Int) : AbstractMutableList<E>() {
     override fun add(index: Int, element: E) {
         AbstractList.checkPositionIndex(index, size)
 
-        if (index == 0) {
-            addFirst(element)
-            return
-        } else if (index == size) {
+        if (index == size) {
             addLast(element)
+            return
+        } else if (index == 0) {
+            addFirst(element)
             return
         }
 
-        if (index < size shr 1) {
+        if (index < (size + 1) shr 1) {
             // closer to the first element -> move first elements
             val internalIndex = internalIndex(index)
 
@@ -274,7 +274,7 @@ public class ArrayDeque<E>(capacity: Int) : AbstractMutableList<E>() {
 
         ensureCapacity(this.size + elements.size)
 
-        if (index < size shr 1) {
+        if (index < (size + 1) shr 1) {
             // closer to the first element -> move first elements
             val internalIndex = internalIndex(index)
 
@@ -416,10 +416,10 @@ public class ArrayDeque<E>(capacity: Int) : AbstractMutableList<E>() {
     override fun removeAt(index: Int): E {
         AbstractList.checkElementIndex(index, size)
 
-        if (index == 0) {
-            return removeFirst()
-        } else if (index == lastIndex) {
+        if (index == lastIndex) {
             return removeLast()
+        } else if (index == 0) {
+            return removeFirst()
         }
 
         val element: E
@@ -496,7 +496,7 @@ public class ArrayDeque<E>(capacity: Int) : AbstractMutableList<E>() {
 
                 @Suppress("UNCHECKED_CAST")
                 if (predicate(element as E))
-                    elements[newTail++] = element
+                    elements[newTail++ and mask] = element
             }
         }
 
@@ -514,5 +514,16 @@ public class ArrayDeque<E>(capacity: Int) : AbstractMutableList<E>() {
         }
         head = 0
         tail = 0
+    }
+
+    // For testing only
+    internal fun internalStructure(structure: (head: Int, elements: Array<Any?>) -> Unit) {
+        if (head <= tail) {
+            @Suppress("UNCHECKED_CAST")
+            structure(head, elements.sliceArray(head until tail))
+        } else {
+            @Suppress("UNCHECKED_CAST")
+            structure(head - elements.size, elements.sliceArray(head until elements.size).plus(elements = elements.sliceArray(0 until tail)))
+        }
     }
 }

@@ -6,7 +6,10 @@
 package collections
 
 import test.collections.behaviors.iteratorBehavior
+import test.collections.behaviors.listIteratorBehavior
+import test.collections.behaviors.listIteratorProperties
 import test.collections.compare
+import kotlin.random.Random
 import kotlin.test.*
 
 class ArrayDequeTest {
@@ -112,7 +115,7 @@ class ArrayDequeTest {
     }
 
     @Test
-    fun removeElement() { // unify with removeAt
+    fun removeElement() {
         val deque = ArrayDeque<Int>()
         deque.addLast(0)
         deque.addLast(1)
@@ -143,20 +146,6 @@ class ArrayDequeTest {
         deque.addFirst(-1)
         compare(deque.iterator(), listOf(-1, 0, 1, 2, 3).iterator()) { iteratorBehavior() }
     }
-
-//    @Test
-//    fun descendingIterator() {
-//        val deque = ArrayDeque<Int>()
-//
-//        deque.addLast(0)
-//        deque.addLast(1)
-//        deque.addLast(2)
-//        deque.addLast(3)
-//        compare(deque.descendingIterator(), listOf(3, 2, 1, 0).iterator()) { iteratorBehavior() }
-//
-//        deque.addFirst(-1)
-//        compare(deque.descendingIterator(), listOf(3, 2, 1, 0, -1).iterator()) { iteratorBehavior() }
-//    }
 
     @Test
     fun first() {
@@ -364,10 +353,10 @@ class ArrayDequeTest {
         assertEquals(listOf(-8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7), deque.toList())
     }
 
-    private fun generateArrayDeque(head: Int, tail: Int): ArrayDeque<Int> {
-        check(tail > 0)
+    private fun generateArrayDeque(head: Int, tail: Int, bufferSize: Int? = null): ArrayDeque<Int> {
+        check(tail >= 0)
 
-        val deque = ArrayDeque<Int>()
+        val deque = if (bufferSize != null) ArrayDeque<Int>(bufferSize - 1) else ArrayDeque()
 
         repeat(tail) {
             deque.addLast(it)
@@ -375,261 +364,65 @@ class ArrayDequeTest {
         }
         repeat(-head) { deque.addFirst(-(it + 1)) }
 
-        assertEquals(tail - head, deque.size)
+        check(tail - head == deque.size)
 
         return deque
     }
 
+    private fun testArrayDeque(test: (bufferSize: Int, dequeSize: Int, head: Int, tail: Int) -> Unit) {
+        for (bufferSize in listOf(8, 16)) {
+            for (dequeSize in 0 until bufferSize) {
+                for (tail in 0 until bufferSize) {
+                    val head = tail - dequeSize
+                    test(bufferSize, dequeSize, head, tail)
+                }
+            }
+        }
+    }
+
     // MutableList operations
     @Test
-    fun insert() {
-        // Move first elements
+    fun insert() = testArrayDeque { bufferSize: Int, dequeSize: Int, head: Int, tail: Int ->
+        for (index in 0..dequeSize) {
+            val deque = generateArrayDeque(head, tail, bufferSize).apply { add(index, 100) }
 
-        // head < tail, internalIndex > head
-        generateArrayDeque(1, 6).let { deque ->
-            deque.add(1, 100)
-            assertEquals(listOf(/**/1, 100, 2, 3, 4, 5), deque.toList())
-        }
-        generateArrayDeque(1, 7).let { deque ->
-            deque.add(2, 100)
-            assertEquals(listOf(/**/1, 2, 100, 3, 4, 5, 6), deque.toList())
-        }
-        generateArrayDeque(0, 5).let { deque ->
-            deque.add(1, 100)
-            assertEquals(listOf(0, /**/100, 1, 2, 3, 4), deque.toList())
-        }
-        generateArrayDeque(0, 6).let { deque ->
-            deque.add(2, 100)
-            assertEquals(listOf(0, /**/1, 100, 2, 3, 4, 5), deque.toList())
-        }
-        // buffer expansion
-        generateArrayDeque(1, 8).let { deque ->
-            deque.add(1, 100)
-            assertEquals(listOf(/**/1, 100, 2, 3, 4, 5, 6, 7), deque.toList())
-        }
-        generateArrayDeque(0, 7).let { deque ->
-            deque.add(2, 100)
-            assertEquals(listOf(/**/0, 1, 100, 2, 3, 4, 5, 6), deque.toList())
-        }
+            val expectedHead = when {
+                dequeSize == bufferSize - 1 -> 0    // buffer expansion
+                index * 2 < dequeSize -> head - 1   // move first elements
+                else ->                             // move last elements
+                    if (tail == bufferSize - 1)
+                        head - bufferSize       // tail == 0 -> head becomes negative (head > tail)
+                    else
+                        head
+            }
+            val expectedElements = (head until tail).toMutableList().apply { add(index, 100) }
 
-        // head > tail, internalIndex < tail
-        generateArrayDeque(-1, 4).let { deque ->
-            deque.add(1, 100)
-            assertEquals(listOf(-1, 100, /**/0, 1, 2, 3), deque.toList())
-        }
-        generateArrayDeque(-1, 5).let { deque ->
-            deque.add(2, 100)
-            assertEquals(listOf(-1, 0, /**/100, 1, 2, 3, 4), deque.toList())
-        }
-        generateArrayDeque(-1, 5).let { deque ->
-            deque.add(1, 100)
-            assertEquals(listOf(-1, 100, /**/0, 1, 2, 3, 4), deque.toList())
-        }
-        generateArrayDeque(-2, 4).let { deque ->
-            deque.add(2, 100)
-            assertEquals(listOf(-2, -1, 100, /**/0, 1, 2, 3), deque.toList())
-        }
-        // buffer expansion
-        generateArrayDeque(-1, 6).let { deque ->
-            deque.add(2, 100)
-            assertEquals(listOf(/**/-1, 0, 100, 1, 2, 3, 4, 5), deque.toList())
-        }
-        generateArrayDeque(-2, 5).let { deque ->
-            deque.add(2, 100)
-            assertEquals(listOf(/**/-2, -1, 100, 0, 1, 2, 3, 4), deque.toList())
-        }
-
-        // head > tail, internalIndex > head
-        generateArrayDeque(-2, 3).let { deque ->
-            deque.add(1, 100)
-            assertEquals(listOf(-2, 100, -1, /**/0, 1, 2), deque.toList())
-        }
-        generateArrayDeque(-2, 4).let { deque ->
-            deque.add(2, 100)
-            assertEquals(listOf(-2, -1, 100, /**/0, 1, 2, 3), deque.toList())
-        }
-        // buffer expansion
-        generateArrayDeque(-2, 5).let { deque ->
-            deque.add(1, 100)
-            assertEquals(listOf(/**/-2, 100, -1, 0, 1, 2, 3, 4), deque.toList())
-        }
-        generateArrayDeque(-3, 4).let { deque ->
-            deque.add(2, 100)
-            assertEquals(listOf(/**/-3, -2, 100, -1, 0, 1, 2, 3), deque.toList())
-        }
-
-        // Move last elements
-
-        // head < tail, internalIndex > head
-        generateArrayDeque(0, 5).let { deque ->
-            deque.add(4, 100)
-            assertEquals(listOf(/**/0, 1, 2, 3, 100, 4), deque.toList())
-        }
-        generateArrayDeque(0, 6).let { deque ->
-            deque.add(4, 100)
-            assertEquals(listOf(/**/0, 1, 2, 3, 100, 4, 5), deque.toList())
-        }
-        generateArrayDeque(3, 8).let { deque ->
-            deque.add(4, 100)
-            assertEquals(listOf(3, 4, 5, 6, 100, /**/7), deque.toList())
-        }
-        generateArrayDeque(2, 8).let { deque ->
-            deque.add(4, 100)
-            assertEquals(listOf(2, 3, 4, 5, 100, /**/6, 7), deque.toList())
-        }
-        // buffer expansion
-        generateArrayDeque(1, 8).let { deque ->
-            deque.add(6, 100)
-            assertEquals(listOf(/**/1, 2, 3, 4, 5, 6, 100, 7), deque.toList())
-        }
-        generateArrayDeque(0, 7).let { deque ->
-            deque.add(5, 100)
-            assertEquals(listOf(/**/0, 1, 2, 3, 4, 100, 5, 6), deque.toList())
-        }
-
-        // head > tail, internalIndex < tail
-        generateArrayDeque(-1, 4).let { deque ->
-            deque.add(4, 100)
-            assertEquals(listOf(-1, /**/0, 1, 2, 100, 3), deque.toList())
-        }
-        generateArrayDeque(-2, 4).let { deque ->
-            deque.add(4, 100)
-            assertEquals(listOf(-2, -1, /**/0, 1, 100, 2, 3), deque.toList())
-        }
-        generateArrayDeque(-4, 1).let { deque ->
-            deque.add(4, 100)
-            assertEquals(listOf(-4, -3, -2, -1, /**/100, 0), deque.toList())
-        }
-        generateArrayDeque(-4, 2).let { deque ->
-            deque.add(4, 100)
-            assertEquals(listOf(-4, -3, -2, -1, /**/100, 0, 1), deque.toList())
-        }
-        // buffer expansion
-        generateArrayDeque(-1, 6).let { deque ->
-            deque.add(6, 100)
-            assertEquals(listOf(/**/-1, 0, 1, 2, 3, 4, 100, 5), deque.toList())
-        }
-        generateArrayDeque(-2, 5).let { deque ->
-            deque.add(5, 100)
-            assertEquals(listOf(/**/-2, -1, 0, 1, 2, 100, 3, 4), deque.toList())
-        }
-
-        // head > tail, internalIndex > head
-        generateArrayDeque(-5, 1).let { deque ->
-            deque.add(4, 100)
-            assertEquals(listOf(-5, -4, -3, -2, 100, /**/-1, 0), deque.toList())
-        }
-        generateArrayDeque(-5, 1).let { deque ->
-            deque.add(3, 100)
-            assertEquals(listOf(-5, -4, -3, 100, -2, /**/-1, 0), deque.toList())
-        }
-        generateArrayDeque(-4, 2).let { deque ->
-            deque.add(3, 100)
-            assertEquals(listOf(-4, -3, -2, 100, /**/-1, 0, 1), deque.toList())
-        }
-        // buffer expansion
-        generateArrayDeque(-6, 1).let { deque ->
-            deque.add(5, 100)
-            assertEquals(listOf(/**/-6, -5, -4, -3, -2, 100, -1, 0), deque.toList())
-        }
-        generateArrayDeque(-5, 2).let { deque ->
-            deque.add(4, 100)
-            assertEquals(listOf(/**/-5, -4, -3, -2, 100, -1, 0, 1), deque.toList())
+            deque.internalStructure { actualHead, actualElements ->
+                assertEquals(expectedHead, actualHead, "head: $head, tail: $tail, index: $index")
+                assertEquals(expectedElements, actualElements.toList())
+            }
         }
     }
 
     @Test
-    fun removeAt() {
-        // Move first elements
+    fun removeAt() = testArrayDeque { bufferSize: Int, dequeSize: Int, head: Int, tail: Int ->
+        for (index in 0 until dequeSize) {
+            val deque = generateArrayDeque(head, tail, bufferSize).apply { removeAt(index) }
 
-        // head < tail, internalIndex > head
-        generateArrayDeque(1, 6).let { deque ->
-            deque.removeAt(1)
-            assertEquals(listOf(/**/1, 3, 4, 5), deque.toList())
-        }
-        generateArrayDeque(1, 7).let { deque ->
-            deque.removeAt(2)
-            assertEquals(listOf(/**/1, 2, 4, 5, 6), deque.toList())
-        }
+            val expectedHead = when {
+                index < dequeSize / 2 -> head + 1   // move first elements
+                else ->                             // move last elements
+                    if (tail == 0)
+                        head + bufferSize   // tail == bufferSize - 1 -> head becomes positive(head < tail)
+                    else
+                        head
+            }
+            val expectedElements = (head until tail).toMutableList().apply { removeAt(index) }
 
-        // head > tail, internalIndex < tail
-        generateArrayDeque(-1, 4).let { deque ->
-            deque.removeAt(1)
-            assertEquals(listOf(/**/-1, 1, 2, 3), deque.toList())
-        }
-        generateArrayDeque(-1, 5).let { deque ->
-            deque.removeAt(2)
-            assertEquals(listOf(/**/-1, 0, 2, 3, 4), deque.toList())
-        }
-        generateArrayDeque(-2, 5).let { deque ->
-            deque.removeAt(2)
-            assertEquals(listOf(-2, /**/-1, 1, 2, 3, 4), deque.toList())
-        }
-        generateArrayDeque(-3, 10).let { deque ->
-            deque.removeAt(5)
-            assertEquals(listOf(-3, -2, /**/-1, 0, 1, 3, 4, 5, 6, 7, 8, 9), deque.toList())
-        }
-
-        // head > tail, internalIndex > head
-        generateArrayDeque(-2, 3).let { deque ->
-            deque.removeAt(1)
-            assertEquals(listOf(-2, /**/0, 1, 2), deque.toList())
-        }
-        generateArrayDeque(-3, 4).let { deque ->
-            deque.removeAt(2)
-            assertEquals(listOf(-3, -2, /**/0, 1, 2, 3), deque.toList())
-        }
-        generateArrayDeque(-3, 4).let { deque ->
-            deque.removeAt(1)
-            assertEquals(listOf(-3, -1, /**/0, 1, 2, 3), deque.toList())
-        }
-
-        // Move last elements
-
-        // head < tail, internalIndex > head
-        generateArrayDeque(0, 5).let { deque ->
-            deque.removeAt(3)
-            assertEquals(listOf(/**/0, 1, 2, 4), deque.toList())
-        }
-        generateArrayDeque(0, 6).let { deque ->
-            deque.removeAt(3)
-            assertEquals(listOf(/**/0, 1, 2, 4, 5), deque.toList())
-        }
-
-        // head > tail, internalIndex < tail
-        generateArrayDeque(-1, 4).let { deque ->
-            deque.removeAt(3)
-            assertEquals(listOf(-1, /**/0, 1, 3), deque.toList())
-        }
-        generateArrayDeque(-4, 3).let { deque ->
-            deque.removeAt(4)
-            assertEquals(listOf(-4, -3, -2, -1, /**/1, 2), deque.toList())
-        }
-        generateArrayDeque(-4, 2).let { deque ->
-            deque.removeAt(4)
-            assertEquals(listOf(-4, -3, -2, -1, /**/1), deque.toList())
-        }
-
-        // head > tail, internalIndex > head
-        generateArrayDeque(-5, 1).let { deque ->
-            deque.removeAt(4)
-            assertEquals(listOf(-5, -4, -3, -2, 0/**/), deque.toList())
-        }
-        generateArrayDeque(-5, 1).let { deque ->
-            deque.removeAt(3)
-            assertEquals(listOf(-5, -4, -3, -1, 0/**/), deque.toList())
-        }
-        generateArrayDeque(-4, 2).let { deque ->
-            deque.removeAt(3)
-            assertEquals(listOf(-4, -3, -2, 0, /**/1), deque.toList())
-        }
-        generateArrayDeque(-6, 1).let { deque ->
-            deque.removeAt(5)
-            assertEquals(listOf(-6, -5, -4, -3, -2, 0/**/), deque.toList())
-        }
-        generateArrayDeque(-4, 3).let { deque ->
-            deque.removeAt(3)
-            assertEquals(listOf(-4, -3, -2, 0, /**/1, 2), deque.toList())
+            deque.internalStructure { actualHead, actualElements ->
+                assertEquals(expectedHead, actualHead, "head: $head, tail: $tail, index: $index")
+                assertEquals(expectedElements, actualElements.toList())
+            }
         }
     }
 
@@ -678,85 +471,128 @@ class ArrayDequeTest {
     }
 
     @Test
-    fun insertAll() {
-        // Move first elements
-        // head < tail
-        generateArrayDeque(0, 4).let { deque ->
-            deque.addAll(0, listOf(4, 5))
-            assertEquals(listOf(4, 5, /**/0, 1, 2, 3), deque.toList())
+    fun insertAll() = testArrayDeque { bufferSize: Int, dequeSize: Int, head: Int, tail: Int ->
+        val listToInsert = listOf(100, 101)
+
+        for (index in 0..dequeSize) {
+            val deque = generateArrayDeque(head, tail, bufferSize).apply { addAll(index, listToInsert) }
+
+            val expectedHead = when {
+                dequeSize + listToInsert.size >= bufferSize ->      // buffer expansion
+                    if (index * 2 < dequeSize)
+                        -listToInsert.size      // move first elements
+                    else
+                        0                       // move last elements
+                index * 2 < dequeSize -> head - listToInsert.size   // move first elements
+                else ->                                             // move last elements
+                    if (tail + listToInsert.size >= bufferSize)
+                        head - bufferSize       // tail >= 0 -> head becomes negative (head > tail)
+                    else
+                        head
+            }
+            val expectedElements = (head until tail).toMutableList().apply { addAll(index, listToInsert) }
+
+            deque.internalStructure { actualHead, actualElements ->
+                assertEquals(expectedHead, actualHead, "head: $head, tail: $tail, index: $index")
+                assertEquals(expectedElements, actualElements.toList())
+            }
         }
-        generateArrayDeque(2, 7).let { deque ->
-            deque.addAll(2, listOf(100, 101))
-            assertEquals(listOf(/**/2, 3, 100, 101, 4, 5, 6), deque.toList())
-        }
-        generateArrayDeque(2, 12).let { deque ->
-            deque.addAll(2, listOf(100, 101, 102))
-            assertEquals(listOf(2, 3, 100, /**/101, 102, 4, 5, 6, 7, 8, 9, 10, 11), deque.toList())
-        }
-        // buffer expansion
+    }
 
-        // head > tail, internalIndex < tail
+    @Test
+    fun listIterator() = testArrayDeque { bufferSize: Int, dequeSize: Int, head: Int, tail: Int ->
 
-        // head > tail, internalIndex >= head
-        generateArrayDeque(-2, 4).let { deque ->
-            deque.addAll(0, listOf(6, 7, 8, 9))
-            assertEquals(listOf(6, 7, 8, 9, -2, -1, /**/0, 1, 2, 3), deque.toList())
+        for (index in 0..dequeSize) {
+            val expectedIterator = (head until tail).toMutableList().listIterator(index)
+            val actualIterator = generateArrayDeque(head, tail, bufferSize).listIterator(index)
+
+            compare(expectedIterator, actualIterator) { listIteratorBehavior() }
         }
 
+        for (index in 0..dequeSize) {
+            val expectedIterator = (head until tail).toMutableList().listIterator(index)
+            val actualIterator = generateArrayDeque(head, tail, bufferSize).listIterator(index)
 
-        // Move last elements
-        // head < tail
+            for (element in listOf(100, 101)) {
+                expectedIterator.add(element)
+                actualIterator.add(element)
+                compare(expectedIterator, actualIterator) { listIteratorProperties() }
+            }
+        }
 
-        // head > tail, internalIndex < tail
+        for (index in 0..dequeSize) {
+            val expectedIterator = (head until tail).toMutableList().listIterator(index)
+            val actualIterator = generateArrayDeque(head, tail, bufferSize).listIterator(index)
 
-        // head > tail, internalIndex > head
+            repeat(times = 2) {
+                if (expectedIterator.hasNext()) {
+                    expectedIterator.next()
+                    actualIterator.next()
+                } else if (expectedIterator.hasPrevious()) {
+                    expectedIterator.previous()
+                    actualIterator.previous()
+                }
+                if (dequeSize > it) {
+                    expectedIterator.remove()
+                    actualIterator.remove()
+                }
+                compare(expectedIterator, actualIterator) { listIteratorProperties() }
+            }
+        }
     }
 
     @Test
-    fun listIterator() {
-        // head < tail
+    fun removeAll() = testArrayDeque { bufferSize: Int, dequeSize: Int, head: Int, tail: Int ->
+        val listToRemove = (head..tail).filter { Random.nextBoolean() }
 
-        // head > tail
+        val elements = (head until tail).toMutableList().apply { removeAll(listToRemove) }
+        val deque = generateArrayDeque(head, tail, bufferSize).apply { removeAll(listToRemove) }
 
-        // add -> double capacity
-
-        // remove
+        assertEquals(elements, deque)
     }
 
     @Test
-    fun removeAll() {
+    fun retainAll() = testArrayDeque { bufferSize: Int, dequeSize: Int, head: Int, tail: Int ->
+        val listToRetain = (head..tail).filter { Random.nextBoolean() }
 
+        val elements = (head until tail).toMutableList().apply { retainAll(listToRetain) }
+        val deque = generateArrayDeque(head, tail, bufferSize).apply { retainAll(listToRetain) }
+
+        assertEquals(elements, deque)
     }
 
     @Test
-    fun retainAll() {
+    fun set() = testArrayDeque { bufferSize: Int, dequeSize: Int, head: Int, tail: Int ->
+        for (index in 0 until dequeSize) {
+            val elements = (head until tail).toMutableList()
+            val deque = generateArrayDeque(head, tail, bufferSize)
 
+            elements[index] = 100
+            deque[index] = 100
+
+            assertEquals(elements, deque)
+        }
     }
 
     @Test
-    fun set() {
-        // head < tail
+    fun get() = testArrayDeque { bufferSize: Int, dequeSize: Int, head: Int, tail: Int ->
+        val elements = (head until tail).toList()
+        val deque = generateArrayDeque(head, tail, bufferSize)
 
-        // head > tail, internalIndex < tail
-
-        // head > tail, internalIndex > head
+        for (index in 0 until dequeSize) {
+            assertEquals(elements[index], deque[index])
+        }
     }
 
     @Test
-    fun get() {
-        // head < tail
+    fun subList() = testArrayDeque { bufferSize: Int, dequeSize: Int, head: Int, tail: Int ->
+        val elements = (head until tail).toList()
+        val deque = generateArrayDeque(head, tail, bufferSize)
 
-        // head > tail, internalIndex < tail
-
-        // head > tail, internalIndex > head
-    }
-
-    @Test
-    fun subList() {
-        // head < tail
-
-        // head > tail, internalIndex < tail
-
-        // head > tail, internalIndex > head
+        for (fromIndex in 0 until dequeSize) {
+            for (toIndex in fromIndex..dequeSize) {
+                assertEquals(elements.subList(fromIndex, toIndex), deque.subList(fromIndex, toIndex))
+            }
+        }
     }
 }
