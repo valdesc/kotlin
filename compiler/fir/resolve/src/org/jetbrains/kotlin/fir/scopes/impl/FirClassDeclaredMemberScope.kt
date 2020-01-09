@@ -5,10 +5,7 @@
 
 package org.jetbrains.kotlin.fir.scopes.impl
 
-import org.jetbrains.kotlin.fir.declarations.FirCallableMemberDeclaration
-import org.jetbrains.kotlin.fir.declarations.FirClass
-import org.jetbrains.kotlin.fir.declarations.FirConstructor
-import org.jetbrains.kotlin.fir.declarations.FirRegularClass
+import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.resolve.FirSymbolProvider
 import org.jetbrains.kotlin.fir.scopes.FirScope
 import org.jetbrains.kotlin.fir.scopes.ProcessorAction
@@ -32,26 +29,31 @@ class FirClassDeclaredMemberScope(
         nestedClassifierScope(klass)
     }
 
-    private val callablesIndex: Map<Name, List<FirCallableSymbol<*>>> = run {
-        val result = mutableMapOf<Name, MutableList<FirCallableSymbol<*>>>()
+    private val functionIndex = mutableMapOf<Name, MutableList<FirFunctionSymbol<*>>>()
+
+    private val propertyIndex = mutableMapOf<Name, MutableList<FirVariableSymbol<*>>>()
+
+    init {
         loop@ for (declaration in klass.declarations) {
             when (declaration) {
-                is FirCallableMemberDeclaration<*> -> {
+                is FirVariable<*> -> {
+                    propertyIndex.getOrPut(declaration.name) { mutableListOf() } += declaration.symbol
+                }
+                is FirMemberFunction<*> -> {
                     val name = when (declaration) {
                         is FirConstructor -> if (klass is FirRegularClass) klass.name else continue@loop
                         else -> declaration.name
                     }
-                    result.getOrPut(name) { mutableListOf() } += declaration.symbol
+                    functionIndex.getOrPut(name) { mutableListOf() } += declaration.symbol
                 }
             }
         }
-        result
     }
 
     override fun processFunctionsByName(name: Name, processor: (FirFunctionSymbol<*>) -> ProcessorAction): ProcessorAction {
-        val symbols = callablesIndex[name] ?: emptyList()
+        val symbols = functionIndex[name] ?: emptyList()
         for (symbol in symbols) {
-            if (symbol is FirFunctionSymbol<*> && !processor(symbol)) {
+            if (!processor(symbol)) {
                 return STOP
             }
         }
@@ -59,9 +61,9 @@ class FirClassDeclaredMemberScope(
     }
 
     override fun processPropertiesByName(name: Name, processor: (FirCallableSymbol<*>) -> ProcessorAction): ProcessorAction {
-        val symbols = callablesIndex[name] ?: emptyList()
+        val symbols = propertyIndex[name] ?: emptyList()
         for (symbol in symbols) {
-            if (symbol is FirVariableSymbol && !processor(symbol)) {
+            if (!processor(symbol)) {
                 return STOP
             }
         }
