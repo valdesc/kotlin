@@ -300,9 +300,12 @@ object TopDownAnalyzerFacadeForJVM {
     }
 }
 
-/**/ // From serialization.js....klib.kt
+// From serialization.js....klib.kt
 
-val jvmFactories = KlibMetadataFactories({ sm -> JvmBuiltIns(sm, JvmBuiltIns.Kind.FROM_DEPENDENCIES) }, NullFlexibleTypeDeserializer)
+val jvmFactories = KlibMetadataFactories(
+    { storageManager -> JvmBuiltIns(storageManager, JvmBuiltIns.Kind.FROM_DEPENDENCIES) },
+    NullFlexibleTypeDeserializer
+)
 
 private fun getKlibModules(klibList: List<KotlinLibrary>, dependencyModule: ModuleDescriptorImpl?): List<ModuleDescriptorImpl> {
     val descriptorMap = mutableMapOf<String, ModuleDescriptorImpl>()
@@ -316,7 +319,7 @@ private fun getModuleDescriptorByLibrary(
     Map<String, ModuleDescriptorImpl>,
     dependencyModule: ModuleDescriptorImpl?
 ): ModuleDescriptorImpl {
-    val md = jvmFactories.DefaultDeserializedDescriptorFactory.createDescriptorOptionalBuiltIns(
+    val module = jvmFactories.DefaultDeserializedDescriptorFactory.createDescriptorOptionalBuiltIns(
         current,
         LanguageVersionSettingsImpl.DEFAULT,
         LockBasedStorageManager.NO_LOCKS,
@@ -331,6 +334,6 @@ private fun getModuleDescriptorByLibrary(
         }
     }
 
-    md.setDependencies(listOf(md) + dependencies + listOfNotNull(dependencyModule))
-    return md
+    module.setDependencies(listOf(module) + dependencies + listOfNotNull(dependencyModule))
+    return module
 }

@@ -48,7 +48,7 @@ abstract class AbstractCompileKotlinAgainstKlibTest : AbstractBlackBoxCodegenTes
             compileToKlib(files.dropLast(1))
         } catch (t: Throwable) {
             if (!isIgnoredTarget(wholeFile)) {
-                throw rethrow(t)
+                throw t
             }
         }
         super.doMultiFileTest(wholeFile, listOf(files.last()))

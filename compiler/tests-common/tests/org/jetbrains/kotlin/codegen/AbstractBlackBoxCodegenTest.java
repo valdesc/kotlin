@@ -147,7 +147,7 @@ public abstract class AbstractBlackBoxCodegenTest extends CodegenTestCase {
                     InTextDirectivesUtils.isDirectiveDefined(FileUtil.loadFile(wholeFile), "IGNORE_BACKEND_FIR: JVM_IR"));
         }
         catch (Exception e) {
-            return false;
+            throw ExceptionUtilsKt.rethrow(e);
         }
     }
 }
