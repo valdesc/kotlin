@@ -508,7 +508,8 @@ tasks {
             ":compiler:test",
             ":compiler:container:test",
             ":compiler:tests-java8:test",
-            ":compiler:tests-spec:remoteRunTests"
+            ":compiler:tests-spec:remoteRunTests",
+            ":compiler:tests-against-klib:test"
         )
         dependsOn(":plugins:jvm-abi-gen:test")
     }
