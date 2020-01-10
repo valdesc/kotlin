@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2019 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2020 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -274,11 +274,7 @@ internal abstract class AbstractScriptConfigurationManager(
             }
         }
 
-    private fun newClassRootsCache() =
-        object : ScriptClassRootsCache(project, cache.allApplied()) {
-            override fun getConfiguration(file: VirtualFile) =
-                this@AbstractScriptConfigurationManager.getConfiguration(file)
-        }
+    private fun newClassRootsCache() = ScriptClassRootsCache(project, cache.allApplied())
 
     private fun clearClassRootsCaches() {
         debug { "class roots caches cleared" }
@@ -297,12 +293,28 @@ internal abstract class AbstractScriptConfigurationManager(
         ScriptDependenciesModificationTracker.getInstance(project).incModificationCount()
     }
 
-    override fun getScriptSdk(file: VirtualFile): Sdk? = classpathRoots.getScriptSdk(file)
+    private fun getActualClasspathRoots(file: VirtualFile): ScriptClassRootsCache {
+        classpathRootsLock.withLock {
+            if (classpathRoots.isActualFor(file)) {
+                return classpathRoots
+            }
+        }
 
-    override fun getFirstScriptsSdk(): Sdk? = classpathRoots.firstScriptSdk
+        // Script configuration can be not loaded at this moment, so it isn't saved in classpathRoots
+        // In this case we need to load it before
+        getConfiguration(file)
+        return classpathRoots
+    }
+
+    override fun getScriptSdk(file: VirtualFile): Sdk? {
+        return getActualClasspathRoots(file).getScriptSdk(file)
+    }
 
     override fun getScriptDependenciesClassFilesScope(file: VirtualFile): GlobalSearchScope =
-        classpathRoots.getScriptDependenciesClassFilesScope(file)
+        getActualClasspathRoots(file).getScriptDependenciesClassFilesScope(file)
+
+
+    override fun getFirstScriptsSdk(): Sdk? = classpathRoots.firstScriptSdk
 
     override fun getAllScriptsDependenciesClassFilesScope(): GlobalSearchScope = classpathRoots.allDependenciesClassFilesScope
 
