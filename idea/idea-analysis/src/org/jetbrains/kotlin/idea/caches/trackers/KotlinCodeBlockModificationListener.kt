@@ -327,19 +327,15 @@ private val PER_FILE_MODIFICATION_TRACKER = Key<SimpleModificationTracker>("FILE
 val KtFile.perFileModificationTracker: ModificationTracker
     get() = putUserDataIfAbsent(PER_FILE_MODIFICATION_TRACKER, SimpleModificationTracker())
 
-private fun KtFile.incOutOfBlockModificationCount(key: Key<Long>) {
-    clearInBlockModifications()
-
-    val count = getUserData(key) ?: 0
-    putUserData(key, count + 1)
-}
-
 private val FILE_OUT_OF_BLOCK_MODIFICATION_COUNT = Key<Long>("FILE_OUT_OF_BLOCK_MODIFICATION_COUNT")
 
 val KtFile.outOfBlockModificationCount: Long by NotNullableUserDataProperty(FILE_OUT_OF_BLOCK_MODIFICATION_COUNT, 0)
 
 private fun KtFile.incOutOfBlockModificationCount() {
-    incOutOfBlockModificationCount(FILE_OUT_OF_BLOCK_MODIFICATION_COUNT)
+    clearInBlockModifications()
+
+    val count = getUserData(FILE_OUT_OF_BLOCK_MODIFICATION_COUNT) ?: 0
+    putUserData(FILE_OUT_OF_BLOCK_MODIFICATION_COUNT, count + 1)
 }
 
 /**
