@@ -91,18 +91,8 @@ class KotlinCodeBlockModificationListener(
 
                 val changedElements = changeSet.changedElements
 
-                // skip change if it contains only virtual/fake change
-                if (changedElements.isNotEmpty()) {
-                    // ignore formatting (whitespaces etc)
-                    if (isFormattingChange(changeSet) || isCommentChange(changeSet)) return
-
-                    if (changedElements.none { it.psi.isPhysical }) {
-                        if (inBlockModifications(changedElements, skipNonPhysical = false).isEmpty()) {
-                            ktFile.incNonPhysicalOutOfBlockModificationCount()
-                        }
-                        return
-                    }
-                }
+                // ignore formatting (whitespaces etc)
+                if (changedElements.isNotEmpty() && (isFormattingChange(changeSet) || isCommentChange(changeSet))) return
 
                 val inBlockElements = inBlockModifications(changedElements)
 
@@ -121,7 +111,7 @@ class KotlinCodeBlockModificationListener(
                     }
 
                     ktFile.incOutOfBlockModificationCount()
-                } else {
+                } else if (ktFile.isPhysical) {
                     inBlockElements.forEach { it.containingKtFile.addInBlockModifiedItem(it) }
                 }
             }
@@ -177,14 +167,14 @@ class KotlinCodeBlockModificationListener(
             tracker.incModificationCount()
         }
 
-        private fun inBlockModifications(elements: Array<ASTNode>, skipNonPhysical: Boolean = true): List<KtElement> {
+        private fun inBlockModifications(elements: Array<ASTNode>): List<KtElement> {
             // When a code fragment is reparsed, Intellij doesn't do an AST diff and considers the entire
             // contents to be replaced, which is represented in a POM event as an empty list of changed elements
 
             return elements.mapNotNull { element ->
                 // skip fake PSI elements like `IntellijIdeaRulezzz$`
                 val psi = element.psi
-                if (!psi.isPhysical && skipNonPhysical) return@mapNotNull null
+                if (!psi.isPhysical && !psi.containingFile.isPhysical) return@mapNotNull null
 
                 val modificationScope = getInsideCodeBlockModificationScope(psi) ?: return emptyList()
                 modificationScope.blockDeclaration
@@ -350,14 +340,6 @@ val KtFile.outOfBlockModificationCount: Long by NotNullableUserDataProperty(FILE
 
 private fun KtFile.incOutOfBlockModificationCount() {
     incOutOfBlockModificationCount(FILE_OUT_OF_BLOCK_MODIFICATION_COUNT)
-}
-
-private val NON_PHYSICAL_FILE_OUT_OF_BLOCK_MODIFICATION_COUNT = Key<Long>("NON_PHYSICAL_FILE_OUT_OF_BLOCK_MODIFICATION_COUNT")
-
-val KtFile.outOfBlockNonPhysicalModificationCount: Long by NotNullableUserDataProperty(NON_PHYSICAL_FILE_OUT_OF_BLOCK_MODIFICATION_COUNT, 0)
-
-private fun KtFile.incNonPhysicalOutOfBlockModificationCount() {
-    incOutOfBlockModificationCount(NON_PHYSICAL_FILE_OUT_OF_BLOCK_MODIFICATION_COUNT)
 }
 
 /**

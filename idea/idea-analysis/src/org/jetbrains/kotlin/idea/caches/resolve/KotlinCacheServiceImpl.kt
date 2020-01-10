@@ -43,7 +43,7 @@ import org.jetbrains.kotlin.descriptors.annotations.AnnotationDescriptor
 import org.jetbrains.kotlin.idea.caches.project.*
 import org.jetbrains.kotlin.idea.caches.project.IdeaModuleInfo
 import org.jetbrains.kotlin.idea.caches.resolve.util.contextWithCompositeExceptionTracker
-import org.jetbrains.kotlin.idea.caches.trackers.outOfBlockNonPhysicalModificationCount
+import org.jetbrains.kotlin.idea.caches.trackers.outOfBlockModificationCount
 import org.jetbrains.kotlin.idea.compiler.IDELanguageSettingsProvider
 import org.jetbrains.kotlin.idea.core.script.ScriptDependenciesModificationTracker
 import org.jetbrains.kotlin.idea.core.script.dependencies.ScriptAdditionalIdeaDependenciesProvider
@@ -246,9 +246,9 @@ class KotlinCacheServiceImpl(val project: Project) : KotlinCacheService {
         val settings = specialModuleInfo.platformSettings(specialModuleInfo.platform ?: targetPlatform)
 
         // Dummy files created e.g. by J2K do not receive events.
-        val dependencyTrackerForSyntheticFileCache = if (files.all { it.originalFile != it }) {
-            ModificationTracker { files.sumByLong { it.outOfBlockNonPhysicalModificationCount } }
-        } else ModificationTracker { files.sumByLong { it.modificationStamp } }
+        val dependencyTrackersForSyntheticFileCache = if (files.all { it.originalFile != it }) {
+            listOf(ModificationTracker { files.sumByLong { it.outOfBlockModificationCount } })
+        } else listOf(ModificationTracker { files.sumByLong { it.modificationStamp } })
 
         val resolverDebugName =
             "$resolverForSpecialInfoName $specialModuleInfo for files ${files.joinToString { it.name }} for platform $targetPlatform"
@@ -269,7 +269,7 @@ class KotlinCacheServiceImpl(val project: Project) : KotlinCacheService {
                 syntheticFiles = files,
                 reuseDataFrom = reuseDataFrom,
                 moduleFilter = moduleFilter,
-                dependencies = listOf(dependencyTrackerForSyntheticFileCache),
+                dependencies = dependencyTrackersForSyntheticFileCache,
                 invalidateOnOOCB = true,
                 allModules = allModules
             )
