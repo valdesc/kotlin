@@ -108,27 +108,71 @@ fun usefulDeclarations(roots: Iterable<IrDeclaration>, context: JsIrBackendConte
 
     val queue = ArrayDeque<IrDeclaration>()
     val result = hashSetOf<IrDeclaration>()
+    // This collection contains declarations whose reachability should be propagated to overrides.
+    // The collection must be a subset of [result] set.
+    val contagiousReachableOverridableDeclarations = hashSetOf<IrOverridableDeclaration<*>>()
     val constructedClasses = hashSetOf<IrClass>()
 
     fun IrDeclaration.enqueue(
         from: IrDeclaration?,
         description: String?,
+        isContagious: Boolean = true,
         altFromFqn: String? = null
     ) {
-        if (this in result) return
+        /*
+        w - write reachability info (if it's required)
+        r - add to result and queue
+        c - add to contagiousReachableOverridableDeclarations
+        _ - do nothing
 
-        if (printReachabilityInfo) {
-            val fromFqn = (from as? IrDeclarationWithName)?.fqNameWhenAvailable?.asString() ?: altFromFqn ?: "<unknown>"
+        isContagious && this is IrOverridableDeclaration<*>
+        | this in contagiousReachableOverridableDeclarations
+        | | this in result
+        | | |
+        0 0 0 -> w, r          => 4
+        0 0 1 -> _             => 5
+        0 1 0 -> illegal state => (4')
+        0 1 1 -> _             => 5
+        1 0 0 -> w, r, c       => 1 2
+        1 0 1 -> w, c          => 1 (-2)
+        1 1 0 -> illegal state => (3')
+        1 1 1 -> _             => 3
+        */
 
-            val toFqn = (this as? IrDeclarationWithName)?.fqNameWhenAvailable?.asString() ?: "<unknown>"
+        fun writeReachabilityInfo() {
+            if (printReachabilityInfo) {
+                val fromFqn = (from as? IrDeclarationWithName)?.fqNameWhenAvailable?.asString() ?: altFromFqn ?: "<unknown>"
+                val toFqn = (this as? IrDeclarationWithName)?.fqNameWhenAvailable?.asString() ?: "<unknown>"
 
-            val v = "\"$fromFqn\" -> \"$toFqn\"" + (if (description.isNullOrBlank()) "" else " // $description")
+                val comment = (description ?: "") + (if (isContagious) "[CONTAGIOUS!]" else "")
+                val v = "\"$fromFqn\" -> \"$toFqn\"" + (if (comment.isBlank()) "" else " // $comment")
 
-            println(v)
+                println(v)
+            }
         }
 
-        result.add(this)
-        queue.addLast(this)
+        fun addToResultAndQueue() {
+            result.add(this)
+            queue.addLast(this)
+        }
+
+        // TODO also check that it's overridable
+        if (isContagious && this is IrOverridableDeclaration<*>) {
+            if (this !in contagiousReachableOverridableDeclarations) { // (1)
+                writeReachabilityInfo()
+                if (this !in result) { // (2)
+                    addToResultAndQueue()
+                }
+                contagiousReachableOverridableDeclarations.add(this)
+            }
+            // else (3)
+        } else {
+            if (this !in result) { // (4)
+                writeReachabilityInfo()
+                addToResultAndQueue()
+            }
+            // else (5)
+        }
     }
 
     // Add roots
@@ -166,8 +210,8 @@ fun usefulDeclarations(roots: Iterable<IrDeclaration>, context: JsIrBackendConte
         while (queue.isNotEmpty()) {
             val declaration = queue.pollFirst()
 
-            fun IrDeclaration.enqueue(description: String) {
-                enqueue(declaration, description)
+            fun IrDeclaration.enqueue(description: String, isContagious: Boolean = true) {
+                enqueue(declaration, description, isContagious)
             }
 
             if (declaration is IrClass) {
@@ -195,7 +239,7 @@ fun usefulDeclarations(roots: Iterable<IrDeclaration>, context: JsIrBackendConte
             }
 
             if (declaration is IrSimpleFunction && declaration.isFakeOverride) {
-                declaration.resolveFakeOverride()?.enqueue("real overridden fun")
+                declaration.resolveFakeOverride()?.enqueue("real overridden fun", isContagious = false)
             }
 
             // Collect instantiated classes.
@@ -282,7 +326,7 @@ fun usefulDeclarations(roots: Iterable<IrDeclaration>, context: JsIrBackendConte
             for (overriddenSymbol in this.overriddenSymbols) {
                 val overriddenDeclaration = overriddenSymbol.owner as? IrOverridableDeclaration<*> ?: continue
 
-                if (overriddenDeclaration in result) return overriddenDeclaration
+                if (overriddenDeclaration in contagiousReachableOverridableDeclarations) return overriddenDeclaration
 
                 overriddenDeclaration.findOverriddenUsefulDeclaration()?.let {
                     return it
