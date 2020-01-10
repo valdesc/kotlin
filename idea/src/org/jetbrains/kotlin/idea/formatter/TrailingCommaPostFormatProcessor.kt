@@ -18,7 +18,10 @@ import com.intellij.psi.impl.source.PostprocessReformattingAspect
 import com.intellij.psi.impl.source.codeStyle.PostFormatProcessor
 import com.intellij.psi.impl.source.codeStyle.PostFormatProcessorHelper
 import com.intellij.psi.tree.TokenSet
+import org.jetbrains.kotlin.config.LanguageFeature
+import org.jetbrains.kotlin.idea.project.languageVersionSettings
 import org.jetbrains.kotlin.idea.util.isMultiline
+import org.jetbrains.kotlin.idea.util.module
 import org.jetbrains.kotlin.idea.util.needTrailingComma
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.*
@@ -32,11 +35,20 @@ import org.jetbrains.kotlin.utils.ifEmpty
 
 class TrailingCommaPostFormatProcessor : PostFormatProcessor {
     override fun processElement(source: PsiElement, settings: CodeStyleSettings): PsiElement =
-        TrailingCommaVisitor(settings).process(source)
+        if (trailingCommaIsAllowedInModule(source))
+            TrailingCommaVisitor(settings).process(source)
+        else
+            source
 
     override fun processText(source: PsiFile, rangeToReformat: TextRange, settings: CodeStyleSettings): TextRange =
-        TrailingCommaVisitor(settings).processText(source, rangeToReformat)
+        if (trailingCommaIsAllowedInModule(source))
+            TrailingCommaVisitor(settings).processText(source, rangeToReformat)
+        else
+            rangeToReformat
 }
+
+private fun trailingCommaIsAllowedInModule(source: PsiElement): Boolean = true || // TODO: add check
+        source.module?.languageVersionSettings?.supportsFeature(LanguageFeature.TrailingCommas) == true
 
 private fun postFormatIsEnable(source: PsiElement): Boolean = !PostprocessReformattingAspect.getInstance(source.project).isDisabled
 
