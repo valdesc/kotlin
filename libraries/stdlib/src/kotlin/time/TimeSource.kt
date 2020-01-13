@@ -55,7 +55,7 @@ public abstract class TimeMark {
     public abstract fun elapsedNow(): Duration
 
     /**
-     * Returns a time mark on the same time source that is ahead of this tie mark by the specified [duration].
+     * Returns a time mark on the same time source that is ahead of this time mark by the specified [duration].
      *
      * The returned time mark is more _late_ when the [duration] is positive, and more _early_ when the [duration] is negative.
      */
