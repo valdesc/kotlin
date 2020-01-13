@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2019 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2020 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 @file:UseExperimental(ExperimentalTime::class)
@@ -8,13 +8,13 @@ package test.time
 import kotlin.test.*
 import kotlin.time.*
 
-class ClockMarkTest {
+class TimeMarkTest {
 
     @Test
     fun adjustment() {
-        val clock = TestClock()
+        val clock = TestTimeSource()
 
-        fun ClockMark.assertHasPassed(hasPassed: Boolean) {
+        fun TimeMark.assertHasPassed(hasPassed: Boolean) {
             assertEquals(!hasPassed, this.hasNotPassedNow(), "Expected mark in the future")
             assertEquals(hasPassed, this.hasPassedNow(), "Expected mark in the past")
 
