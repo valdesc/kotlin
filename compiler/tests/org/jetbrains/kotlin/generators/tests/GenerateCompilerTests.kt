@@ -94,10 +94,6 @@ fun main(args: Array<String>) {
             model("diagnostics/testsWithStdLib", excludedPattern = excludedFirTestdataPattern)
         }
 
-        testClass<AbstractDiagnosticsTestWithReflect> {
-            model("diagnostics/testsWithReflect", excludedPattern = excludedFirTestdataPattern)
-        }
-
         testClass<AbstractDiagnosticsTestWithStdLibUsingJavac> {
             model("diagnostics/testsWithStdLib", excludedPattern = excludedFirTestdataPattern)
         }
@@ -582,10 +578,6 @@ fun main(args: Array<String>) {
                 excludedPattern = excludedFirTestdataPattern,
                 excludeDirs = listOf("coroutines")
             )
-        }
-
-        testClass<AbstractFirOldFrontendDiagnosticsTestWithReflect> {
-            model("diagnostics/testsWithReflect", excludedPattern = excludedFirTestdataPattern)
         }
     }
 
