@@ -110,7 +110,7 @@ fun usefulDeclarations(roots: Iterable<IrDeclaration>, context: JsIrBackendConte
     val result = hashSetOf<IrDeclaration>()
     // This collection contains declarations whose reachability should be propagated to overrides.
     // The collection must be a subset of [result] set.
-    val contagiousReachableOverridableDeclarations = hashSetOf<IrOverridableDeclaration<*>>()
+    val contagiousReachableDeclarations = hashSetOf<IrOverridableDeclaration<*>>()
     val constructedClasses = hashSetOf<IrClass>()
 
     fun IrDeclaration.enqueue(
@@ -122,11 +122,11 @@ fun usefulDeclarations(roots: Iterable<IrDeclaration>, context: JsIrBackendConte
         /*
         w - write reachability info (if it's required)
         r - add to result and queue
-        c - add to contagiousReachableOverridableDeclarations
+        c - add to contagiousReachableDeclarations
         _ - do nothing
 
         isContagious && this is IrOverridableDeclaration<*>
-        | this in contagiousReachableOverridableDeclarations
+        | this in contagiousReachableDeclarations
         | | this in result
         | | |
         0 0 0 -> w, r          => 4
@@ -158,12 +158,12 @@ fun usefulDeclarations(roots: Iterable<IrDeclaration>, context: JsIrBackendConte
 
         // TODO also check that it's overridable
         if (isContagious && this is IrOverridableDeclaration<*>) {
-            if (this !in contagiousReachableOverridableDeclarations) { // (1)
+            if (this !in contagiousReachableDeclarations) { // (1)
                 writeReachabilityInfo()
                 if (this !in result) { // (2)
                     addToResultAndQueue()
                 }
-                contagiousReachableOverridableDeclarations.add(this)
+                contagiousReachableDeclarations.add(this)
             }
             // else (3)
         } else {
@@ -326,7 +326,7 @@ fun usefulDeclarations(roots: Iterable<IrDeclaration>, context: JsIrBackendConte
             for (overriddenSymbol in this.overriddenSymbols) {
                 val overriddenDeclaration = overriddenSymbol.owner as? IrOverridableDeclaration<*> ?: continue
 
-                if (overriddenDeclaration in contagiousReachableOverridableDeclarations) return overriddenDeclaration
+                if (overriddenDeclaration in contagiousReachableDeclarations) return overriddenDeclaration
 
                 overriddenDeclaration.findOverriddenUsefulDeclaration()?.let {
                     return it
