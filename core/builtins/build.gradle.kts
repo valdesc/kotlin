@@ -13,7 +13,9 @@ val serialize by tasks.registering(NoDebugJavaExec::class) {
     val outDir = "$buildDir/$name"
     val inDirs = arrayOf(builtinsSrc, builtinsNative)
     inDirs.forEach { inputs.dir(it) }
+
     outputs.dir(outDir)
+    outputs.cacheIf { true }
 
     classpath(rootProject.buildscript.configurations["bootstrapCompilerClasspath"])
     main = "org.jetbrains.kotlin.serialization.builtins.RunKt"
