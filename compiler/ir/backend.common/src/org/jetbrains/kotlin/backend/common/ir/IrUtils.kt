@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2019 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2020 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -13,7 +13,6 @@ import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.descriptors.Visibilities
 import org.jetbrains.kotlin.descriptors.annotations.Annotations
 import org.jetbrains.kotlin.ir.IrElement
-import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.ir.builders.Scope
 import org.jetbrains.kotlin.ir.declarations.*
@@ -102,9 +101,20 @@ val IrCall.isSuspend get() = (symbol.owner as? IrSimpleFunction)?.isSuspend == t
 val IrFunctionReference.isSuspend get() = (symbol.owner as? IrSimpleFunction)?.isSuspend == true
 
 val IrSimpleFunction.isOverridable: Boolean
-    get() = visibility != Visibilities.PRIVATE && modality != Modality.FINAL && (parent as? IrClass)?.isFinalClass != true
+    get() = visibility != Visibilities.PRIVATE && modality != Modality.FINAL && (parent as? IrClass)?.isFinalClass == false
 
 val IrSimpleFunction.isOverridableOrOverrides: Boolean get() = isOverridable || overriddenSymbols.isNotEmpty()
+
+// TODO should we implement more precise check: !effectively private && !effectively final?
+val IrField.isOverridable: Boolean
+    get() = visibility != Visibilities.PRIVATE && !isFinal && (parent as? IrClass)?.isFinalClass == false
+
+val IrOverridableDeclaration<*>.isOverridable: Boolean
+    get() = when(this) {
+        is IrSimpleFunction -> isOverridable
+        is IrField -> isOverridable
+        else -> false
+    }
 
 fun IrReturnTarget.returnType(context: CommonBackendContext) =
     when (this) {

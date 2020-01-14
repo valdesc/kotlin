@@ -5,6 +5,7 @@
 
 package org.jetbrains.kotlin.ir.backend.js
 
+import org.jetbrains.kotlin.backend.common.ir.isOverridable
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.ir.backend.js.export.isExported
@@ -105,6 +106,7 @@ fun usefulDeclarations(roots: Iterable<IrDeclaration>, context: JsIrBackendConte
     val printReachabilityInfo =
         context.configuration.getBoolean(JSConfigurationKeys.PRINT_REACHABILITY_INFO) ||
                 java.lang.Boolean.getBoolean("kotlin.js.ir.dce.print.reachability.info")
+    val reachabilityInfo: MutableSet<String> = if (printReachabilityInfo) linkedSetOf() else Collections.emptySet()
 
     val queue = ArrayDeque<IrDeclaration>()
     val result = hashSetOf<IrDeclaration>()
@@ -120,56 +122,50 @@ fun usefulDeclarations(roots: Iterable<IrDeclaration>, context: JsIrBackendConte
         altFromFqn: String? = null
     ) {
         /*
-        w - write reachability info (if it's required)
         r - add to result and queue
         c - add to contagiousReachableDeclarations
         _ - do nothing
+        i - illegal state
 
         isContagious && this is IrOverridableDeclaration<*>
         | this in contagiousReachableDeclarations
         | | this in result
         | | |
-        0 0 0 -> w, r          => 4
-        0 0 1 -> _             => 5
-        0 1 0 -> illegal state => (4')
-        0 1 1 -> _             => 5
-        1 0 0 -> w, r, c       => 1 2
-        1 0 1 -> w, c          => 1 (-2)
-        1 1 0 -> illegal state => (3')
-        1 1 1 -> _             => 3
+        0 0 0 -> r    => 4
+        0 0 1 -> _    => 5
+        0 1 0 -> i    => (4')
+        0 1 1 -> _    => 5
+        1 0 0 -> r, c => 1 2
+        1 0 1 -> c    => 1 (-2)
+        1 1 0 -> i    => (3')
+        1 1 1 -> _    => 3
         */
 
-        fun writeReachabilityInfo() {
-            if (printReachabilityInfo) {
-                val fromFqn = (from as? IrDeclarationWithName)?.fqNameWhenAvailable?.asString() ?: altFromFqn ?: "<unknown>"
-                val toFqn = (this as? IrDeclarationWithName)?.fqNameWhenAvailable?.asString() ?: "<unknown>"
+        val isContagiousOverridableDeclaration = isContagious && this is IrOverridableDeclaration<*> && this.isOverridable
 
-                val comment = (description ?: "") + (if (isContagious) "[CONTAGIOUS!]" else "")
-                val v = "\"$fromFqn\" -> \"$toFqn\"" + (if (comment.isBlank()) "" else " // $comment")
+        if (printReachabilityInfo) {
+            val fromFqn = (from as? IrDeclarationWithName)?.fqNameWhenAvailable?.asString() ?: altFromFqn ?: "<unknown>"
+            val toFqn = (this as? IrDeclarationWithName)?.fqNameWhenAvailable?.asString() ?: "<unknown>"
 
-                println(v)
-            }
+            val comment = (description ?: "") + (if (isContagiousOverridableDeclaration) "[CONTAGIOUS!]" else "")
+            val v = "\"$fromFqn\" -> \"$toFqn\"" + (if (comment.isBlank()) "" else " // $comment")
+
+            reachabilityInfo.add(v)
         }
 
-        fun addToResultAndQueue() {
-            result.add(this)
-            queue.addLast(this)
-        }
-
-        // TODO also check that it's overridable
-        if (isContagious && this is IrOverridableDeclaration<*>) {
+        if (isContagiousOverridableDeclaration) {
             if (this !in contagiousReachableDeclarations) { // (1)
-                writeReachabilityInfo()
                 if (this !in result) { // (2)
-                    addToResultAndQueue()
+                    result.add(this)
+                    queue.addLast(this)
                 }
-                contagiousReachableDeclarations.add(this)
+                contagiousReachableDeclarations.add(this as IrOverridableDeclaration<*>)
             }
             // else (3)
         } else {
             if (this !in result) { // (4)
-                writeReachabilityInfo()
-                addToResultAndQueue()
+                result.add(this)
+                queue.addLast(this)
             }
             // else (5)
         }
@@ -359,6 +355,10 @@ fun usefulDeclarations(roots: Iterable<IrDeclaration>, context: JsIrBackendConte
                 }
             }
         }
+    }
+
+    if (printReachabilityInfo) {
+        reachabilityInfo.forEach(::println)
     }
 
     return result
