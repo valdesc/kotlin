@@ -13,14 +13,21 @@ import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinJsCompilation
 import org.jetbrains.kotlin.gradle.targets.js.KotlinGradleNpmPackage
 import org.jetbrains.kotlin.gradle.targets.js.RequiredKotlinJsDependency
 import org.jetbrains.kotlin.gradle.targets.js.internal.parseNodeJsStackTraceAsJvm
+import org.jetbrains.kotlin.gradle.targets.js.ir.KotlinJsIrTest
+import org.jetbrains.kotlin.gradle.targets.js.ir.KotlinJsIrTestFramework
 import org.jetbrains.kotlin.gradle.targets.js.jsQuoted
 import org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootPlugin
+import org.jetbrains.kotlin.gradle.targets.js.npm.LoadNpmModules
+import org.jetbrains.kotlin.gradle.targets.js.npm.RequiresNpmDependencies
 import org.jetbrains.kotlin.gradle.targets.js.npm.npmProject
 import org.jetbrains.kotlin.gradle.targets.js.testing.KotlinJsTest
 import org.jetbrains.kotlin.gradle.targets.js.testing.KotlinJsTestFramework
 import org.jetbrains.kotlin.gradle.targets.js.testing.KotlinTestRunnerCliArgs
+import org.jetbrains.kotlin.gradle.tasks.KotlinTest
 
-class KotlinMocha(override val compilation: KotlinJsCompilation) : KotlinJsTestFramework {
+class KotlinMocha(override val compilation: KotlinJsCompilation) :
+    KotlinJsTestFramework,
+    KotlinJsIrTestFramework {
     private val project: Project = compilation.target.project
     private val nodeJs = NodeJsRootPlugin.apply(project.rootProject)
     private val versions = nodeJs.versions
@@ -39,11 +46,37 @@ class KotlinMocha(override val compilation: KotlinJsCompilation) : KotlinJsTestF
     var timeout: String = DEFAULT_TIMEOUT
 
     override fun createTestExecutionSpec(
+        task: KotlinJsIrTest,
+        forkOptions: ProcessForkOptions,
+        nodeJsArgs: MutableList<String>,
+        debug: Boolean
+    ): TCServiceMessagesTestExecutionSpec =
+        createTestExecutionSpecPrivate<KotlinJsIrTest>(
+            task, forkOptions, nodeJsArgs, debug
+        )
+
+    override fun createTestExecutionSpec(
         task: KotlinJsTest,
         forkOptions: ProcessForkOptions,
         nodeJsArgs: MutableList<String>,
         debug: Boolean
-    ): TCServiceMessagesTestExecutionSpec {
+    ): TCServiceMessagesTestExecutionSpec =
+        createTestExecutionSpecPrivate(
+            task = task,
+            forkOptions = forkOptions,
+            nodeJsArgs = nodeJsArgs,
+            debug = debug
+        )
+
+    private fun <T> createTestExecutionSpecPrivate(
+        task: T,
+        forkOptions: ProcessForkOptions,
+        nodeJsArgs: MutableList<String>,
+        debug: Boolean
+    ): TCServiceMessagesTestExecutionSpec
+            where T : KotlinTest,
+                  T : RequiresNpmDependencies,
+                  T : LoadNpmModules {
         val clientSettings = TCServiceMessagesClientSettings(
             task.name,
             testNameSuffix = task.targetName,
@@ -93,7 +126,7 @@ class KotlinMocha(override val compilation: KotlinJsCompilation) : KotlinJsTestF
         return value?.let { listOf(cli, it) } ?: emptyList()
     }
 
-    private fun createAdapterJs(task: KotlinJsTest) {
+    private fun createAdapterJs(task: LoadNpmModules) {
         val npmProject = compilation.npmProject
         val file = task.nodeModulesToLoad
             .map { npmProject.require(it) }
