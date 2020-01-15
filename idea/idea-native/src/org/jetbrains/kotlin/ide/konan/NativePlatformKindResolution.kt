@@ -5,6 +5,7 @@
 
 package org.jetbrains.kotlin.ide.konan
 
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.OrderRootType
 import com.intellij.openapi.roots.libraries.Library
@@ -27,8 +28,8 @@ import org.jetbrains.kotlin.descriptors.PackageFragmentProvider
 import org.jetbrains.kotlin.descriptors.impl.CompositePackageFragmentProvider
 import org.jetbrains.kotlin.descriptors.konan.DeserializedKlibModuleOrigin
 import org.jetbrains.kotlin.descriptors.konan.KlibModuleOrigin
-import org.jetbrains.kotlin.ide.konan.NativeLibraryInfo.Companion.safeAbiVersion
 import org.jetbrains.kotlin.ide.konan.NativeLibraryInfo.Companion.isCompatible
+import org.jetbrains.kotlin.ide.konan.NativeLibraryInfo.Companion.safeAbiVersion
 import org.jetbrains.kotlin.ide.konan.analyzer.NativeResolverForModuleFactory
 import org.jetbrains.kotlin.idea.caches.project.LibraryInfo
 import org.jetbrains.kotlin.idea.caches.project.lazyClosure
@@ -214,7 +215,7 @@ class NativeLibraryInfo(project: Project, library: Library, val libraryRoot: Str
         val NATIVE_LIBRARY_CAPABILITY = ModuleDescriptor.Capability<KotlinLibrary>("KotlinNativeLibrary")
 
         internal val KotlinLibrary.safeAbiVersion get() = this.readSafe(null) { versions.abiVersion }
-        internal val KotlinAbiVersion?.isCompatible get() = this == KotlinAbiVersion.CURRENT
+        internal val KotlinAbiVersion?.isCompatible get() = this == KotlinAbiVersion.CURRENT || ApplicationManager.getApplication().isInternal
 
         private fun <T> KotlinLibrary.readSafe(defaultValue: T, action: KotlinLibrary.() -> T) = try {
             action()

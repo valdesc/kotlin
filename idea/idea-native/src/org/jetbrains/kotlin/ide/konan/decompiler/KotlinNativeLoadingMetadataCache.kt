@@ -68,7 +68,7 @@ class KotlinNativeLoadingMetadataCache : BaseComponent {
             CacheValue(computeLibraryVersioning(manifestFile))
         }.value
 
-        return versioning?.abiVersion == KotlinAbiVersion.CURRENT
+        return versioning?.abiVersion == KotlinAbiVersion.CURRENT || ApplicationManager.getApplication().isInternal
     }
 
     private fun computePackageFragment(packageFragmentFile: VirtualFile): ProtoBuf.PackageFragment? {
