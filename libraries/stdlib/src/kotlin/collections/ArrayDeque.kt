@@ -5,11 +5,8 @@
 
 package kotlin.collections
 
-/**
- * The minimum capacity that we'll use for a newly created deque.
- * Must be a power of 2.
- */
-private const val MIN_INITIAL_CAPACITY = 8
+private val emptyElementData = emptyArray<Any?>()
+private const val maxArraySize = Int.MAX_VALUE - 8
 
 /**
  * Resizable-array implementation of the deque data structure.
@@ -20,106 +17,101 @@ private const val MIN_INITIAL_CAPACITY = 8
  * It also implements [MutableList] interface and supports efficient get/set operations by index.
  */
 @ExperimentalStdlibApi
-public class ArrayDeque<E>(capacity: Int) : AbstractMutableList<E>() {
+public class ArrayDeque<E> : AbstractMutableList<E> {
     private var head: Int = 0
-    private var tail: Int = 0
-    private var elements: Array<Any?>
+    private var elementData: Array<Any?>
 
-    init {
-        if (capacity < 0)
-            throw IllegalArgumentException("Capacity can't be negative")
+    override var size: Int = 0
 
-        var initialCapacity = MIN_INITIAL_CAPACITY
-        // Find the best power of two to hold elements.
-        // Tests "<=" because arrays aren't kept full.
-        if (capacity >= initialCapacity) {
-            initialCapacity = capacity.takeHighestOneBit() shl 1
-
-            if (initialCapacity < 0)   // Too many elements, must back off
-                initialCapacity = initialCapacity ushr 1 // Good luck allocating 2 ^ 30 elements
+    /** Constructs and empty deque. */
+    constructor(initialCapacity: Int) {
+        elementData = when {
+            initialCapacity == 0 -> emptyElementData
+            initialCapacity > 0 -> arrayOfNulls(initialCapacity)
+            else -> throw IllegalArgumentException("Illegal Capacity: $initialCapacity")
         }
-        elements = arrayOfNulls(initialCapacity)
     }
 
     /** Constructs and empty deque. */
-    constructor() : this(0)
+    constructor() {
+        elementData = emptyElementData
+    }
 
     /** Constructs a deque that contains the same elements as the specified [elements] collection in the same order. */
-    constructor(elements: Collection<E>) : this(elements.size) {
-        this.addAll(elements)
+    constructor(elements: Collection<E>) {
+        elementData = elements.toTypedArray()
+        size = elementData.size
+        if (elementData.isEmpty()) elementData = emptyElementData
     }
 
     /**
-     * Doubles the capacity of this deque.  Call only when full, i.e.,
-     * when head and tail have wrapped around to become equal.
-     */
-    private fun doubleCapacity() {
-        check(head == tail)
-
-        val newCapacity = elements.size shl 1
-        if (newCapacity < 0)
-            throw IllegalStateException("Sorry, deque too big")
-
-        copyElements(newCapacity, elements.size)
-    }
-
-    /**
-     * Ensures that the capacity of this deque is at least equal to the specified [minimumCapacity].
+     * Ensures that the capacity of this deque is at least equal to the specified [minCapacity].
      *
-     * If the current capacity is less than the [minimumCapacity], a new backing storage is allocated with greater capacity.
+     * If the current capacity is less than the [minCapacity], a new backing storage is allocated with greater capacity.
      * Otherwise, this method takes no action and simply returns.
-     *
-     * Do not call this method if this deque is full.
      */
-    private fun ensureCapacity(minimumCapacity: Int) {
-        if (minimumCapacity < elements.size) return
+    private fun ensureCapacity(minCapacity: Int) {
+        if (minCapacity <= elementData.size) return
+        if (elementData === emptyElementData) {
+            elementData = arrayOfNulls(minCapacity.coerceAtLeast(10))
+            return
+        }
 
-        val newCapacity = minimumCapacity.takeHighestOneBit() shl 1
-        if (newCapacity < 0)
-            throw IllegalStateException("Sorry, deque too big")
+        // overflow-conscious
+        val oldCapacity = elementData.size
+        var newCapacity = oldCapacity + (oldCapacity shr 1)
+        if (newCapacity - minCapacity < 0)
+            newCapacity = minCapacity
+        if (newCapacity - maxArraySize > 0)
+            newCapacity = hugeCapacity(minCapacity)
 
-        copyElements(newCapacity, size)
+        copyElements(newCapacity)
+    }
+
+    private fun hugeCapacity(minCapacity: Int): Int {
+        if (minCapacity < 0)
+            throw IllegalStateException("Deque is too big.")    // overflow
+        return if (minCapacity > maxArraySize) Int.MAX_VALUE else maxArraySize
     }
 
     /**
-     * Creates a new array with the specified [newCapacity] size and copies elements in the [elements] array to it.
+     * Creates a new array with the specified [newCapacity] size and copies elementData in the [elementData] array to it.
      */
-    private fun copyElements(newCapacity: Int, newSize: Int) {
+    private fun copyElements(newCapacity: Int) {
         val newElements = arrayOfNulls<Any?>(newCapacity)
-        elements.copyInto(newElements, 0, head, elements.size)
-        elements.copyInto(newElements, elements.size - head, 0, head)
+        elementData.copyInto(newElements, 0, head, elementData.size)
+        elementData.copyInto(newElements, elementData.size - head, 0, head)
         head = 0
-        tail = newSize
-        elements = newElements
+        elementData = newElements
     }
-
-    private inline val mask: Int
-        get() = elements.size - 1
 
     @kotlin.internal.InlineOnly
     private inline fun internalGet(internalIndex: Int): E {
         @Suppress("UNCHECKED_CAST")
-        return elements[internalIndex] as E
+        return elementData[internalIndex] as E
     }
 
     @kotlin.internal.InlineOnly
-    private inline fun internalIndex(index: Int): Int = (head + index) and mask
+    private inline fun positiveMod(index: Int): Int = if (index >= elementData.size) index - elementData.size else index
 
     @kotlin.internal.InlineOnly
-    private inline fun incremented(index: Int): Int = (index + 1) and mask
+    private inline fun negativeMod(index: Int): Int = if (index < 0) index + elementData.size else index
 
     @kotlin.internal.InlineOnly
-    private inline fun decremented(index: Int): Int = (index - 1) and mask
+    private inline fun internalIndex(index: Int): Int = positiveMod(head + index)
 
-    override val size: Int
-        get() = (tail - head) and mask
+    @kotlin.internal.InlineOnly
+    private inline fun incremented(index: Int): Int = if (index == elementData.size - 1) 0 else index + 1
 
-    override fun isEmpty(): Boolean = head == tail
+    @kotlin.internal.InlineOnly
+    private inline fun decremented(index: Int): Int = if (index == 0) elementData.size - 1 else index - 1
+
+    override fun isEmpty(): Boolean = size == 0
 
     /**
      * Returns first element or throws [NoSuchElementException] if this deque is empty.
      */
-    fun first(): E = if (isEmpty()) throw NoSuchElementException() else internalGet(head)
+    fun first(): E = if (isEmpty()) throw NoSuchElementException("ArrayDeque is empty.") else internalGet(head)
 
     /**
      * Returns first element or `null` if this deque is empty.
@@ -129,47 +121,44 @@ public class ArrayDeque<E>(capacity: Int) : AbstractMutableList<E>() {
     /**
      * Returns last element or throws [NoSuchElementException] if this deque is empty.
      */
-    fun last(): E = if (isEmpty()) throw NoSuchElementException() else internalGet(decremented(tail))
+    fun last(): E = if (isEmpty()) throw NoSuchElementException("ArrayDeque is empty.") else internalGet(internalIndex(size - 1))
 
     /**
      * Returns last element or `null` if this deque is empty.
      */
-    fun lastOrNull(): E? = if (isEmpty()) null else internalGet(decremented(tail))
+    fun lastOrNull(): E? = if (isEmpty()) null else internalGet(internalIndex(size - 1))
 
     /**
      * Prepends the specified [element] to this deque.
      */
     fun addFirst(element: E) {
-        head = decremented(head)
-        elements[head] = element
+        ensureCapacity(size + 1)
 
-        if (head == tail) {
-            doubleCapacity()
-        }
+        head = decremented(head)
+        elementData[head] = element
+        size += 1
     }
 
     /**
      * Appends the specified [element] to this deque.
      */
     fun addLast(element: E) {
-        elements[tail] = element
-        tail = incremented(tail)
+        ensureCapacity(size + 1)
 
-        if (head == tail) {
-            doubleCapacity()
-        }
+        elementData[internalIndex(size)] = element
+        size += 1
     }
 
     /**
      * Removes the first element from this deque and returns that removed element, or throws [NoSuchElementException] if this deque is empty.
      */
     fun removeFirst(): E {
-        if (isEmpty())
-            throw NoSuchElementException()
+        if (isEmpty()) throw NoSuchElementException("ArrayDeque is empty.")
 
         val element = internalGet(head)
-        elements[head] = null
+        elementData[head] = null
         head = incremented(head)
+        size -= 1
         return element
     }
 
@@ -182,12 +171,12 @@ public class ArrayDeque<E>(capacity: Int) : AbstractMutableList<E>() {
      * Removes the last element from this deque and returns that removed element, or throws [NoSuchElementException] if this deque is empty.
      */
     fun removeLast(): E {
-        if (isEmpty())
-            throw NoSuchElementException()
+        if (isEmpty()) throw NoSuchElementException("ArrayDeque is empty.")
 
-        tail = decremented(tail)
-        val element = internalGet(tail)
-        elements[tail] = null
+        val internalLastIndex = internalIndex(size - 1)
+        val element = internalGet(internalLastIndex)
+        elementData[internalLastIndex] = null
+        size -= 1
         return element
     }
 
@@ -213,53 +202,87 @@ public class ArrayDeque<E>(capacity: Int) : AbstractMutableList<E>() {
             return
         }
 
+        ensureCapacity(size + 1)
+
+        // Elements in circular array may lay in 2 ways:
+        //   1. `head` is less than `tail`:       [#, #, e1, e2, e3, #]
+        //   2. `head` is greater than `tail`:    [e3, #, #, #, e1, e2]
+        // where head is the index of the first element in the circular array,
+        // and tail is the index following the last element.
+        //
+        // At this point the insertion index is not equal to head or tail.
+        // Also the circular array can store at least one more element.
+        //
+        // Depending on where the given element must be inserted the preceding or the succeeding
+        // elements will be shifted to make room for the element to be inserted.
+        //
+        // In case the preceding elements are shifted:
+        //   * if the insertion index is greater than the head (regardless of circular array form)
+        //      -> shift the preceding elements
+        //   * otherwise, the circular array has (2) form and the insertion index is less than tail
+        //      -> shift all elements in the back of the array
+        //      -> shift preceding elements in the front of the array
+        // In case the succeeding elements are shifted:
+        //   * if the insertion index is less than the tail (regardless of circular array form)
+        //      -> shift the succeeding elements
+        //   * otherwise, the circular array has (2) form and the insertion index is greater than head
+        //      -> shift all elements in the front of the array
+        //      -> shift succeeding elements in the back of the array
+
+        val internalIndex = internalIndex(index)
+
         if (index < (size + 1) shr 1) {
-            // closer to the first element -> move first elements
-            val internalIndex = internalIndex(index)
+            // closer to the first element -> shift preceding elements
+            val decrementedInternalIndex = decremented(internalIndex)
+            val decrementedHead = decremented(head)
 
-            if (internalIndex < head) { // head > tail, head can't be zero
-                elements.copyInto(elements, head - 1, head, elements.size)
-
-                if (internalIndex != 0) {
-                    elements[elements.size - 1] = elements[0]
-                    elements.copyInto(elements, 0, 1, internalIndex)
-                }
-            } else { // internalIndex > head, head may be zero
-                elements[decremented(head)] = elements[head]
-                elements.copyInto(elements, head, head + 1, internalIndex)
+            if (decrementedInternalIndex >= head) {
+                elementData[decrementedHead] = elementData[head]  // head can be zero
+                elementData.copyInto(elementData, head, head + 1, decrementedInternalIndex + 1)
+            } else { // head > tail
+                elementData.copyInto(elementData, head - 1, head, elementData.size) // head can't be zero
+                elementData[elementData.size - 1] = elementData[0]
+                elementData.copyInto(elementData, 0, 1, decrementedInternalIndex + 1)
             }
 
-            elements[decremented(internalIndex)] = element
-            head = decremented(head)
+            elementData[decrementedInternalIndex] = element
+            head = decrementedHead
         } else {
-            // closer to the last element -> move last elements
-            val internalIndex = internalIndex(index)
+            // closer to the last element -> shift succeeding elements
+            val tail = internalIndex(size)
 
-            if (internalIndex > tail) { // head > tail, internalIndex may be `elements.size - 1`
-                elements.copyInto(elements, 1, 0, tail)
-                elements[0] = elements[elements.size - 1]
-                elements.copyInto(elements, internalIndex + 1, internalIndex, elements.size - 1)
-            } else { // internalIndex < tail
-                elements.copyInto(elements, internalIndex + 1, internalIndex, tail)
+            if (internalIndex < tail) {
+                elementData.copyInto(elementData, internalIndex + 1, internalIndex, tail)
+            } else { // head > tail
+                elementData.copyInto(elementData, 1, 0, tail)
+                elementData[0] = elementData[elementData.size - 1]
+                elementData.copyInto(elementData, internalIndex + 1, internalIndex, elementData.size - 1)
             }
 
-            elements[internalIndex] = element
-            tail = incremented(tail)
+            elementData[internalIndex] = element
+        }
+        size += 1
+    }
+
+    private fun copyCollectionElements(internalIndex: Int, elements: Collection<E>) {
+        val iterator = elements.iterator()
+
+        for (index in internalIndex until elementData.size) {
+            if (!iterator.hasNext()) break
+            elementData[index] = iterator.next()
+        }
+        for (index in 0 until head) {
+            if (!iterator.hasNext()) break
+            elementData[index] = iterator.next()
         }
 
-        if (head == tail) {
-            doubleCapacity()
-        }
+        size += elements.size
     }
 
     override fun addAll(elements: Collection<E>): Boolean {
-        if (elements.isEmpty())
-            return false
-
+        if (elements.isEmpty()) return false
         ensureCapacity(this.size + elements.size)
-
-        elements.forEach { element -> addLast(element) }
-
+        copyCollectionElements(internalIndex(size), elements)
         return true
     }
 
@@ -274,81 +297,68 @@ public class ArrayDeque<E>(capacity: Int) : AbstractMutableList<E>() {
 
         ensureCapacity(this.size + elements.size)
 
+        val tail = internalIndex(size)
+        val internalIndex = internalIndex(index)
+        val elementsSize = elements.size
+
         if (index < (size + 1) shr 1) {
-            // closer to the first element -> move first elements
-            val internalIndex = internalIndex(index)
+            // closer to the first element -> shift preceding elements
 
-            var copyOffset: Int
+            var shiftedHead = head - elementsSize
 
-            if (internalIndex < head) { // head > tail, head can't be zero
-                copyOffset = head - elements.size
-                check(copyOffset > tail)
+            if (internalIndex >= head) {
+                if (shiftedHead >= 0) {
+                    elementData.copyInto(elementData, shiftedHead, head, internalIndex)
+                } else { // head < tail, insertion leads to head >= tail
+                    shiftedHead += elementData.size
+                    val elementsToShift = internalIndex - head
+                    val shiftToBack = elementData.size - shiftedHead
 
-                this.elements.copyInto(this.elements, copyOffset, head, this.elements.size)
-                copyOffset += this.elements.size - head
-
-                val moveCount = minOf(elements.size, internalIndex)
-                this.elements.copyInto(this.elements, copyOffset, 0, moveCount)
-                this.elements.copyInto(this.elements, 0, moveCount, internalIndex)
-                copyOffset = (copyOffset + internalIndex) and mask
-
-            } else { // internalIndex > head, head may be zero
-                copyOffset = (head - elements.size) and mask
-                check(copyOffset < head || copyOffset > tail)
-
-                val maxMove = internalIndex - head
-                val moveCount = maxOf(0, elements.size - head).coerceAtMost(maxMove)
-                this.elements.copyInto(this.elements, copyOffset, head, head + moveCount)
-                copyOffset = (copyOffset + moveCount) and mask
-
-                this.elements.copyInto(this.elements, copyOffset, head + moveCount, internalIndex)
-                copyOffset = (copyOffset + internalIndex - head - moveCount) and mask
+                    if (shiftToBack >= elementsToShift) {
+                        elementData.copyInto(elementData, shiftedHead, head, internalIndex)
+                    } else {
+                        elementData.copyInto(elementData, shiftedHead, head, head + shiftToBack)
+                        elementData.copyInto(elementData, 0, head + shiftToBack, internalIndex)
+                    }
+                }
+            } else { // head > tail, internalIndex < tail
+                elementData.copyInto(elementData, shiftedHead, head, elementData.size)
+                if (elementsSize >= internalIndex) {
+                    elementData.copyInto(elementData, elementData.size - elementsSize, 0, internalIndex)
+                } else {
+                    elementData.copyInto(elementData, elementData.size - elementsSize, 0, elementsSize)
+                    elementData.copyInto(elementData, 0, elementsSize, internalIndex)
+                }
             }
-
-            elements.forEach { element ->
-                this.elements[copyOffset] = element
-                copyOffset = incremented(copyOffset)
-            }
-            check(copyOffset == internalIndex)
-            head = (head - elements.size) and mask
+            head = shiftedHead
+            copyCollectionElements(negativeMod(internalIndex - elementsSize), elements)
         } else {
-            // closer to the last element -> move last elements
-            val internalIndex = internalIndex(index)
+            // closer to the last element -> shift succeeding elements
 
-            var copyOffset: Int
+            val shiftedInternalIndex = internalIndex + elementsSize
 
-            if (internalIndex > tail) { // head > tail
-                check(tail + elements.size < head)
-
-                this.elements.copyInto(this.elements, elements.size, 0, tail)
-
-                val moveCount = minOf(elements.size, this.elements.size - internalIndex)
-                copyOffset = elements.size - moveCount
-                this.elements.copyInto(this.elements, copyOffset, this.elements.size - moveCount, this.elements.size)
-                copyOffset = (copyOffset - (this.elements.size - moveCount - internalIndex)) and mask
-                this.elements.copyInto(this.elements, copyOffset, internalIndex, this.elements.size - moveCount)
-            } else { // internalIndex < tail
-                copyOffset = (tail + elements.size) and mask
-                check(copyOffset < head || copyOffset > tail)
-
-                val maxMove = tail - internalIndex
-                val moveCount = maxOf(0, tail + elements.size - this.elements.size).coerceAtMost(maxMove)
-                check(copyOffset >= moveCount)
-                copyOffset -= moveCount
-                this.elements.copyInto(this.elements, copyOffset, tail - moveCount, tail)
-
-                copyOffset = (copyOffset - (tail - moveCount - internalIndex)) and mask
-                this.elements.copyInto(this.elements, copyOffset, internalIndex, tail - moveCount)
+            if (internalIndex < tail) {
+                if (tail + elementsSize <= elementData.size) {
+                    elementData.copyInto(elementData, shiftedInternalIndex, internalIndex, tail)
+                } else { // head < tail, insertion leads to head >= tail
+                    if (shiftedInternalIndex >= elementData.size) {
+                        elementData.copyInto(elementData, shiftedInternalIndex - elementData.size, internalIndex, tail)
+                    } else {
+                        val shiftToFront = tail + elementsSize - elementData.size
+                        elementData.copyInto(elementData, 0, tail - shiftToFront, tail)
+                        elementData.copyInto(elementData, shiftedInternalIndex, internalIndex, tail - shiftToFront)
+                    }
+                }
+            } else { // head > tail, internalIndex > head
+                elementData.copyInto(elementData, elementsSize, 0, tail)
+                if (shiftedInternalIndex >= elementData.size) {
+                    elementData.copyInto(elementData, shiftedInternalIndex - elementData.size, internalIndex, elementData.size)
+                } else {
+                    elementData.copyInto(elementData, 0, elementData.size - elementsSize, elementData.size)
+                    elementData.copyInto(elementData, shiftedInternalIndex, internalIndex, elementData.size - elementsSize)
+                }
             }
-
-            copyOffset = (copyOffset - elements.size) and mask
-
-            check(copyOffset == internalIndex)
-            elements.forEach { element ->
-                this.elements[copyOffset] = element
-                copyOffset = incremented(copyOffset)
-            }
-            tail = (tail + elements.size) and mask
+            copyCollectionElements(internalIndex, elements)
         }
 
         return true
@@ -364,8 +374,8 @@ public class ArrayDeque<E>(capacity: Int) : AbstractMutableList<E>() {
         AbstractList.checkElementIndex(index, size)
 
         val internalIndex = internalIndex(index)
-        val oldElement = internalGet(internalIndex(index))
-        elements[internalIndex] = element
+        val oldElement = internalGet(internalIndex)
+        elementData[internalIndex] = element
 
         return oldElement
     }
@@ -373,16 +383,18 @@ public class ArrayDeque<E>(capacity: Int) : AbstractMutableList<E>() {
     override fun contains(element: E): Boolean = indexOf(element) != -1
 
     override fun indexOf(element: E): Int {
+        val tail = internalIndex(size)
+
         if (head < tail) {
             for (index in head until tail) {
-                if (element == elements[index]) return index - head
+                if (element == elementData[index]) return index - head
             }
-        } else if (head > tail) {
-            for (index in head until elements.size) {
-                if (element == elements[index]) return index - head
+        } else if (head >= tail) {
+            for (index in head until elementData.size) {
+                if (element == elementData[index]) return index - head
             }
             for (index in 0 until tail) {
-                if (element == elements[index]) return index + elements.size - head
+                if (element == elementData[index]) return index + elementData.size - head
             }
         }
 
@@ -390,16 +402,18 @@ public class ArrayDeque<E>(capacity: Int) : AbstractMutableList<E>() {
     }
 
     override fun lastIndexOf(element: E): Int {
+        val tail = internalIndex(size)
+
         if (head < tail) {
             for (index in tail - 1 downTo head) {
-                if (element == elements[index]) return index - head
+                if (element == elementData[index]) return index - head
             }
         } else if (head > tail) {
             for (index in tail - 1 downTo 0) {
-                if (element == elements[index]) return index + elements.size - head
+                if (element == elementData[index]) return index + elementData.size - head
             }
-            for (index in elements.size - 1 downTo head) {
-                if (element == elements[index]) return index - head
+            for (index in elementData.size - 1 downTo head) {
+                if (element == elementData[index]) return index - head
             }
         }
 
@@ -422,39 +436,36 @@ public class ArrayDeque<E>(capacity: Int) : AbstractMutableList<E>() {
             return removeFirst()
         }
 
-        val element: E
-        if (index < size shr 1) {
-            // closer to the first element -> move first elements
-            val internalIndex = internalIndex(index)
-            element = internalGet(internalIndex)
+        val internalIndex = internalIndex(index)
+        val element = internalGet(internalIndex)
 
-            if (internalIndex < head) {
-                elements.copyInto(elements, 1, 0, internalIndex)
-                elements[0] = elements[elements.size - 1]
-                elements.copyInto(elements, head + 1, head, elements.size - 1)
-            } else {
-                elements.copyInto(elements, head + 1, head, internalIndex)
+        if (index < size shr 1) {
+            // closer to the first element -> shift preceding elements
+            if (internalIndex >= head) {
+                elementData.copyInto(elementData, head + 1, head, internalIndex)
+            } else { // head > tail, internalIndex < head
+                elementData.copyInto(elementData, 1, 0, internalIndex)
+                elementData[0] = elementData[elementData.size - 1]
+                elementData.copyInto(elementData, head + 1, head, elementData.size - 1)
             }
 
-            elements[head] = null
+            elementData[head] = null
             head = incremented(head)
         } else {
-            // closer to the last element -> move last elements
-            val internalIndex = internalIndex(index)
-            element = internalGet(internalIndex)
+            // closer to the last element -> shift succeeding elements
+            val internalLastIndex = internalIndex(size - 1)
 
-            tail = decremented(tail)
-
-            if (internalIndex > tail) {
-                elements.copyInto(elements, internalIndex, internalIndex + 1, elements.size)
-                elements[elements.size - 1] = elements[0]
-                elements.copyInto(elements, 0, 1, tail + 1)
-            } else {
-                elements.copyInto(elements, internalIndex, internalIndex + 1, tail + 1)
+            if (internalIndex <= internalLastIndex) {
+                elementData.copyInto(elementData, internalIndex, internalIndex + 1, internalLastIndex + 1)
+            } else { // head > tail, internalIndex > head
+                elementData.copyInto(elementData, internalIndex, internalIndex + 1, elementData.size)
+                elementData[elementData.size - 1] = elementData[0]
+                elementData.copyInto(elementData, 0, 1, internalLastIndex + 1)
             }
 
-            elements[tail] = null
+            elementData[internalLastIndex] = null
         }
+        size -= 1
 
         return element
     }
@@ -464,66 +475,83 @@ public class ArrayDeque<E>(capacity: Int) : AbstractMutableList<E>() {
     override fun retainAll(elements: Collection<E>): Boolean = filterInPlace { elements.contains(it) }
 
     private inline fun filterInPlace(predicate: (E) -> Boolean): Boolean {
-        if (this.isEmpty() || elements.isEmpty())
+        if (this.isEmpty() || elementData.isEmpty())
             return false
 
+        val tail = internalIndex(size)
         var newTail = head
+        var modified = false
 
         if (head < tail) {
             for (index in head until tail) {
-                val element = elements[index]
+                val element = elementData[index]
 
                 @Suppress("UNCHECKED_CAST")
                 if (predicate(element as E))
-                    elements[newTail++] = element
+                    elementData[newTail++] = element
+                else
+                    modified = true
             }
 
-            elements.fill(null, newTail, tail)
+            elementData.fill(null, newTail, tail)
 
         } else {
-            for (index in head until elements.size) {
-                val element = elements[index]
-                elements[index] = null
+            for (index in head until elementData.size) {
+                val element = elementData[index]
+                elementData[index] = null
 
                 @Suppress("UNCHECKED_CAST")
                 if (predicate(element as E))
-                    elements[newTail++] = element
+                    elementData[newTail++] = element
+                else
+                    modified = true
             }
+
+            newTail = positiveMod(newTail)
 
             for (index in 0 until tail) {
-                val element = elements[index]
-                elements[index] = null
+                val element = elementData[index]
+                elementData[index] = null
 
                 @Suppress("UNCHECKED_CAST")
-                if (predicate(element as E))
-                    elements[newTail++ and mask] = element
+                if (predicate(element as E)) {
+                    elementData[newTail] = element
+                    newTail = incremented(newTail)
+                } else {
+                    modified = true
+                }
             }
         }
+        if (modified)
+            size = negativeMod(newTail - head)
 
-        val changed = newTail != tail
-        tail = newTail
-        return changed
+        return modified
     }
 
     override fun clear() {
+        val tail = internalIndex(size)
         if (head < tail) {
-            elements.fill(null, head, tail)
-        } else if (head > tail) {
-            elements.fill(null, head, elements.size)
-            elements.fill(null, 0, tail)
+            elementData.fill(null, head, tail)
+        } else if (isNotEmpty()) {
+            elementData.fill(null, head, elementData.size)
+            elementData.fill(null, 0, tail)
         }
         head = 0
-        tail = 0
+        size = 0
     }
 
     // For testing only
     internal fun internalStructure(structure: (head: Int, elements: Array<Any?>) -> Unit) {
-        if (head <= tail) {
+        val tail = internalIndex(size)
+
+        if (isEmpty()) {
+            structure(head, emptyArray())
+        } else if (head < tail) {
             @Suppress("UNCHECKED_CAST")
-            structure(head, elements.sliceArray(head until tail))
+            structure(head, elementData.sliceArray(head until tail))
         } else {
             @Suppress("UNCHECKED_CAST")
-            structure(head - elements.size, elements.sliceArray(head until elements.size).plus(elements = elements.sliceArray(0 until tail)))
+            structure(head - elementData.size, elementData.sliceArray(head until elementData.size).plus(elements = elementData.sliceArray(0 until tail)))
         }
     }
 }

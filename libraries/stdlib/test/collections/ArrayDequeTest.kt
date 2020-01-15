@@ -10,6 +10,7 @@ import test.collections.behaviors.listIteratorBehavior
 import test.collections.behaviors.listIteratorProperties
 import test.collections.compare
 import kotlin.random.Random
+import kotlin.random.nextInt
 import kotlin.test.*
 
 class ArrayDequeTest {
@@ -97,20 +98,8 @@ class ArrayDequeTest {
     }
 
     @Test
-    fun clear() {
-        val deque = ArrayDeque<Int>(10)
-        assertTrue(deque.isEmpty())
-        deque.clear()
-        assertTrue(deque.isEmpty())
-        deque.addLast(0)
-        deque.addLast(1)
-        deque.addLast(2)
-        deque.clear()
-        assertTrue(deque.isEmpty())
-        deque.addFirst(-1)
-        deque.addLast(0)
-        deque.addLast(1)
-        deque.clear()
+    fun clear() = testArrayDeque { bufferSize: Int, dequeSize: Int, head: Int, tail: Int ->
+        val deque = generateArrayDeque(head, tail, bufferSize).apply { clear() }
         assertTrue(deque.isEmpty())
     }
 
@@ -356,7 +345,7 @@ class ArrayDequeTest {
     private fun generateArrayDeque(head: Int, tail: Int, bufferSize: Int? = null): ArrayDeque<Int> {
         check(tail >= 0)
 
-        val deque = if (bufferSize != null) ArrayDeque<Int>(bufferSize - 1) else ArrayDeque()
+        val deque = if (bufferSize != null) ArrayDeque<Int>(bufferSize) else ArrayDeque()
 
         repeat(tail) {
             deque.addLast(it)
@@ -370,8 +359,8 @@ class ArrayDequeTest {
     }
 
     private fun testArrayDeque(test: (bufferSize: Int, dequeSize: Int, head: Int, tail: Int) -> Unit) {
-        for (bufferSize in listOf(8, 16)) {
-            for (dequeSize in 0 until bufferSize) {
+        for (bufferSize in listOf(0, 1, 2, 5, 8, 16)) {
+            for (dequeSize in 0..bufferSize) {
                 for (tail in 0 until bufferSize) {
                     val head = tail - dequeSize
                     test(bufferSize, dequeSize, head, tail)
@@ -387,9 +376,15 @@ class ArrayDequeTest {
             val deque = generateArrayDeque(head, tail, bufferSize).apply { add(index, 100) }
 
             val expectedHead = when {
-                dequeSize == bufferSize - 1 -> 0    // buffer expansion
-                index * 2 < dequeSize -> head - 1   // move first elements
-                else ->                             // move last elements
+                dequeSize == bufferSize ->          // buffer expansion
+                    when {
+                        index * 2 < dequeSize -> -1 // shift preceding elements
+                        // shift succeeding elements
+                        dequeSize + 1 >= bufferSize + bufferSize / 2 -> -(dequeSize + 1) // tail == 0 -> head becomes negative (head > tail)
+                        else -> 0
+                    }
+                index * 2 < dequeSize -> head - 1   // shift preceding elements
+                else ->                             // shift succeeding last elements
                     if (tail == bufferSize - 1)
                         head - bufferSize       // tail == 0 -> head becomes negative (head > tail)
                     else
@@ -398,7 +393,7 @@ class ArrayDequeTest {
             val expectedElements = (head until tail).toMutableList().apply { add(index, 100) }
 
             deque.internalStructure { actualHead, actualElements ->
-                assertEquals(expectedHead, actualHead, "head: $head, tail: $tail, index: $index")
+                assertEquals(expectedHead, actualHead, "bufferSize: $bufferSize, head: $head, tail: $tail, index: $index")
                 assertEquals(expectedElements, actualElements.toList())
             }
         }
@@ -410,8 +405,8 @@ class ArrayDequeTest {
             val deque = generateArrayDeque(head, tail, bufferSize).apply { removeAt(index) }
 
             val expectedHead = when {
-                index < dequeSize / 2 -> head + 1   // move first elements
-                else ->                             // move last elements
+                index < dequeSize / 2 -> head + 1   // shift preceding elements
+                else ->                             // shift succeeding elements
                     if (tail == 0)
                         head + bufferSize   // tail == bufferSize - 1 -> head becomes positive(head < tail)
                     else
@@ -420,7 +415,7 @@ class ArrayDequeTest {
             val expectedElements = (head until tail).toMutableList().apply { removeAt(index) }
 
             deque.internalStructure { actualHead, actualElements ->
-                assertEquals(expectedHead, actualHead, "head: $head, tail: $tail, index: $index")
+                assertEquals(expectedHead, actualHead, "bufferSize: $bufferSize, head: $head, tail: $tail, index: $index")
                 assertEquals(expectedElements, actualElements.toList())
             }
         }
@@ -472,29 +467,33 @@ class ArrayDequeTest {
 
     @Test
     fun insertAll() = testArrayDeque { bufferSize: Int, dequeSize: Int, head: Int, tail: Int ->
-        val listToInsert = listOf(100, 101)
+        for (insertCollectionSize in 0..bufferSize) {
+            val listToInsert = (0 until insertCollectionSize).map { 100 + it }
 
-        for (index in 0..dequeSize) {
-            val deque = generateArrayDeque(head, tail, bufferSize).apply { addAll(index, listToInsert) }
+            for (index in 0..dequeSize) {
+                val deque = generateArrayDeque(head, tail, bufferSize).apply { addAll(index, listToInsert) }
 
-            val expectedHead = when {
-                dequeSize + listToInsert.size >= bufferSize ->      // buffer expansion
-                    if (index * 2 < dequeSize)
-                        -listToInsert.size      // move first elements
-                    else
-                        0                       // move last elements
-                index * 2 < dequeSize -> head - listToInsert.size   // move first elements
-                else ->                                             // move last elements
-                    if (tail + listToInsert.size >= bufferSize)
-                        head - bufferSize       // tail >= 0 -> head becomes negative (head > tail)
-                    else
-                        head
-            }
-            val expectedElements = (head until tail).toMutableList().apply { addAll(index, listToInsert) }
+                val expectedHead = when {
+                    dequeSize + listToInsert.size > bufferSize ->       // buffer expansion
+                        when {
+                            index * 2 < dequeSize -> -listToInsert.size // shift preceding elements
+                            // shift succeeding elements
+                            dequeSize + listToInsert.size >= bufferSize + bufferSize / 2 -> -(dequeSize + listToInsert.size) // tail == 0 -> head becomes negative (head > tail)
+                            else -> 0
+                        }
+                    index * 2 < dequeSize -> head - listToInsert.size   // shift preceding elements
+                    else ->                                             // shift succeeding elements
+                        if (tail + listToInsert.size >= bufferSize)
+                            head - bufferSize       // tail >= 0 -> head becomes negative (head > tail)
+                        else
+                            head
+                }
+                val expectedElements = (head until tail).toMutableList().apply { addAll(index, listToInsert) }
 
-            deque.internalStructure { actualHead, actualElements ->
-                assertEquals(expectedHead, actualHead, "head: $head, tail: $tail, index: $index")
-                assertEquals(expectedElements, actualElements.toList())
+                deque.internalStructure { actualHead, actualElements ->
+                    assertEquals(expectedHead, actualHead, "bufferSize: $bufferSize, head: $head, tail: $tail, index: $index")
+                    assertEquals(expectedElements, actualElements.toList())
+                }
             }
         }
     }
@@ -543,7 +542,19 @@ class ArrayDequeTest {
 
     @Test
     fun removeAll() = testArrayDeque { bufferSize: Int, dequeSize: Int, head: Int, tail: Int ->
-        val listToRemove = (head..tail).filter { Random.nextBoolean() }
+        generateArrayDeque(head, tail, bufferSize).let { deque ->
+            deque.removeAll(emptyList())
+            assertEquals((head until tail).toList(), deque)
+
+            val absentElements = listOf(head - 1, tail, Random.nextInt(tail..Int.MAX_VALUE))
+            deque.removeAll(absentElements)
+            assertEquals((head until tail).toList(), deque)
+
+            deque.removeAll((head until tail).toList())
+            assertTrue(deque.isEmpty())
+        }
+
+        val listToRemove = (head - 1 until tail + 1).filter { Random.nextBoolean() }
 
         val elements = (head until tail).toMutableList().apply { removeAll(listToRemove) }
         val deque = generateArrayDeque(head, tail, bufferSize).apply { removeAll(listToRemove) }
