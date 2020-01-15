@@ -12,6 +12,9 @@ import org.jetbrains.kotlin.backend.common.ir.isSuspend
 import org.jetbrains.kotlin.backend.common.lower.VariableRemapper
 import org.jetbrains.kotlin.backend.jvm.JvmBackendContext
 import org.jetbrains.kotlin.backend.jvm.JvmLoweredDeclarationOrigin
+import org.jetbrains.kotlin.backend.jvm.ir.createJvmIrBuilder
+import org.jetbrains.kotlin.backend.jvm.ir.irArray
+import org.jetbrains.kotlin.builtins.functions.FunctionInvokeDescriptor.Factory.BIG_ARITY
 import org.jetbrains.kotlin.codegen.ClassBuilder
 import org.jetbrains.kotlin.codegen.coroutines.CoroutineTransformerMethodVisitor
 import org.jetbrains.kotlin.codegen.coroutines.INVOKE_SUSPEND_METHOD_NAME
@@ -33,6 +36,7 @@ import org.jetbrains.kotlin.ir.expressions.impl.IrGetValueImpl
 import org.jetbrains.kotlin.ir.types.createType
 import org.jetbrains.kotlin.ir.types.impl.makeTypeProjection
 import org.jetbrains.kotlin.ir.types.isUnit
+import org.jetbrains.kotlin.ir.types.typeWith
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 import org.jetbrains.kotlin.psi.KtElement
@@ -199,35 +203,60 @@ internal fun IrCall.createSuspendFunctionCallViewIfNeeded(
     if (!isSuspend) return this
     val view = (symbol.owner as IrSimpleFunction).getOrCreateSuspendFunctionViewIfNeeded(context)
     if (view == symbol.owner) return this
-    return IrCallImpl(startOffset, endOffset, view.returnType, view.symbol, superQualifierSymbol = superQualifierSymbol).also {
+    val isBigAritySuspendFunctionN =
+        symbol.owner.parentAsClass?.defaultType?.let { it.isSuspendFunction() || it.isKSuspendFunction() } && valueArgumentsCount + 1 >= BIG_ARITY
+    val calleeSymbol =
+        if (isBigAritySuspendFunctionN) context.ir.symbols.functionN.functions.single { it.owner.name.toString() == "invoke" } else view.symbol
+    return IrCallImpl(startOffset, endOffset, view.returnType, calleeSymbol, superQualifierSymbol = superQualifierSymbol).also {
         it.copyTypeArgumentsFrom(this)
         it.dispatchReceiver = dispatchReceiver
         it.extensionReceiver = extensionReceiver
-        // Locate the caller continuation parameter. The continuation parameter is before default argument mask(s) and handler params.
-        val callerNumberOfMasks = caller.valueParameters.count { it.origin == IrDeclarationOrigin.MASK_FOR_DEFAULT_FUNCTION }
-        val callerContinuationIndex = caller.valueParameters.size - 1 - (if (callerNumberOfMasks != 0) callerNumberOfMasks + 1 else 0)
-        val continuationParameter =
-            when {
-                caller.isInvokeSuspendOfLambda() || caller.isInvokeSuspendOfContinuation() ||
-                        caller.isInvokeSuspendForInlineOfLambda() ->
-                    IrGetValueImpl(UNDEFINED_OFFSET, UNDEFINED_OFFSET, caller.dispatchReceiverParameter!!.symbol)
-                callerIsInlineLambda -> context.fakeContinuation
-                else -> IrGetValueImpl(UNDEFINED_OFFSET, UNDEFINED_OFFSET, caller.valueParameters[callerContinuationIndex].symbol)
-            }
-        // If the suspend function view that we are calling has default parameters, we need to make sure to pass the
-        // continuation before the default parameter mask(s) and handler.
-        val numberOfMasks = view.valueParameters.count { it.origin == IrDeclarationOrigin.MASK_FOR_DEFAULT_FUNCTION }
-        val continuationIndex = valueArgumentsCount - (if (numberOfMasks != 0) numberOfMasks + 1 else 0)
-        for (i in 0 until continuationIndex) {
-            it.putValueArgument(i, getValueArgument(i))
-        }
-        it.putValueArgument(continuationIndex, continuationParameter)
-        if (numberOfMasks != 0) {
-            for (i in 0 until numberOfMasks + 1) {
-                it.putValueArgument(valueArgumentsCount + i - 1, getValueArgument(continuationIndex + i))
-            }
+        val valueArguments = computeSuspendFunctionCallViewValueArguments(caller, callerIsInlineLambda, context, view)
+        if (isBigAritySuspendFunctionN) {
+            // If we are calling FunctionN.invoke, wrap arguments in an array.
+            it.putValueArgument(0, context.createJvmIrBuilder(caller.symbol).run {
+                irArray(irSymbols.array.typeWith(context.irBuiltIns.anyNType)) {
+                    valueArguments.forEach { argument -> +argument }
+                }
+            })
+        } else {
+            valueArguments.forEachIndexed { index, argument -> it.putValueArgument(index, argument) }
         }
     }
+}
+
+private fun IrCall.computeSuspendFunctionCallViewValueArguments(
+    caller: IrFunction,
+    callerIsInlineLambda: Boolean,
+    context: JvmBackendContext,
+    view: IrFunction
+): List<IrExpression> {
+    // Locate the caller continuation parameter. The continuation parameter is before default argument mask(s) and handler params.
+    val callerNumberOfMasks = caller.valueParameters.count { it.origin == IrDeclarationOrigin.MASK_FOR_DEFAULT_FUNCTION }
+    val callerContinuationIndex = caller.valueParameters.size - 1 - (if (callerNumberOfMasks != 0) callerNumberOfMasks + 1 else 0)
+    val continuationParameter =
+        when {
+            caller.isInvokeSuspendOfLambda() || caller.isInvokeSuspendOfContinuation() ||
+                    caller.isInvokeSuspendForInlineOfLambda() ->
+                IrGetValueImpl(UNDEFINED_OFFSET, UNDEFINED_OFFSET, caller.dispatchReceiverParameter!!.symbol)
+            callerIsInlineLambda -> context.fakeContinuation
+            else -> IrGetValueImpl(UNDEFINED_OFFSET, UNDEFINED_OFFSET, caller.valueParameters[callerContinuationIndex].symbol)
+        }
+    // If the suspend function view that we are calling has default parameters, we need to make sure to pass the
+    // continuation before the default parameter mask(s) and handler.
+    val numberOfMasks = view.valueParameters.count { it.origin == IrDeclarationOrigin.MASK_FOR_DEFAULT_FUNCTION }
+    val continuationIndex = valueArgumentsCount - (if (numberOfMasks != 0) numberOfMasks + 1 else 0)
+    val valueArguments = mutableListOf<IrExpression>()
+    for (i in 0 until continuationIndex) {
+        valueArguments.add(getValueArgument(i)!!)
+    }
+    valueArguments.add(continuationParameter)
+    if (numberOfMasks != 0) {
+        for (i in 0 until numberOfMasks + 1) {
+            valueArguments.add(getValueArgument(continuationIndex + i)!!)
+        }
+    }
+    return valueArguments
 }
 
 internal fun createFakeContinuation(context: JvmBackendContext): IrExpression = IrErrorExpressionImpl(
