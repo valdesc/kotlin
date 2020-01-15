@@ -209,10 +209,16 @@ open class ClassCodegen protected constructor(
             state.bindingTrace.record(CodegenBinding.DELEGATED_PROPERTIES_WITH_METADATA, type, localDelegatedProperties.map { it.descriptor })
         }
 
+        // TODO: if `-Xmultifile-parts-inherit` is enabled, write the corresponding flag for parts and facades to [Metadata.extraInt].
+        var extraFlags = JvmAnnotationNames.METADATA_JVM_IR_FLAG
+        if (state.isIrWithStableAbi) {
+            extraFlags += JvmAnnotationNames.METADATA_JVM_IR_STABLE_ABI_FLAG
+        }
+
         when (val metadata = irClass.metadata) {
             is MetadataSource.Class -> {
                 val classProto = serializer!!.classProto(metadata.descriptor).build()
-                writeKotlinMetadata(visitor, state, KotlinClassHeader.Kind.CLASS, 0) {
+                writeKotlinMetadata(visitor, state, KotlinClassHeader.Kind.CLASS, extraFlags) {
                     AsmUtil.writeAnnotationData(it, serializer, classProto)
                 }
 
@@ -228,7 +234,7 @@ open class ClassCodegen protected constructor(
 
                 val facadeClassName = context.multifileFacadeForPart[irClass.attributeOwnerId]
                 val kind = if (facadeClassName != null) KotlinClassHeader.Kind.MULTIFILE_CLASS_PART else KotlinClassHeader.Kind.FILE_FACADE
-                writeKotlinMetadata(visitor, state, kind, 0) { av ->
+                writeKotlinMetadata(visitor, state, kind, extraFlags) { av ->
                     AsmUtil.writeAnnotationData(av, serializer, packageProto.build())
 
                     if (facadeClassName != null) {
@@ -243,7 +249,7 @@ open class ClassCodegen protected constructor(
             is MetadataSource.Function -> {
                 val fakeDescriptor = createFreeFakeLambdaDescriptor(metadata.descriptor)
                 val functionProto = serializer!!.functionProto(fakeDescriptor)?.build()
-                writeKotlinMetadata(visitor, state, KotlinClassHeader.Kind.SYNTHETIC_CLASS, 0) {
+                writeKotlinMetadata(visitor, state, KotlinClassHeader.Kind.SYNTHETIC_CLASS, extraFlags) {
                     if (functionProto != null) {
                         AsmUtil.writeAnnotationData(it, serializer, functionProto)
                     }
@@ -257,7 +263,7 @@ open class ClassCodegen protected constructor(
                         if (fileClass != null) typeMapper.mapClass(fileClass).internalName else null
                     }
                     MultifileClassCodegenImpl.writeMetadata(
-                        visitor, state, 0 /* TODO */, partInternalNames, type, irClass.fqNameWhenAvailable!!.parent()
+                        visitor, state, extraFlags, partInternalNames, type, irClass.fqNameWhenAvailable!!.parent()
                     )
                 } else {
                     writeSyntheticClassMetadata(visitor, state)

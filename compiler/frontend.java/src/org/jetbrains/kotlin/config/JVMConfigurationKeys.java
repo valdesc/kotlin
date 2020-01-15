@@ -113,4 +113,7 @@ public class JVMConfigurationKeys {
 
     public static final CompilerConfigurationKey<Boolean> EMIT_JVM_TYPE_ANNOTATIONS =
             CompilerConfigurationKey.create("Emit JVM type annotations in bytecode");
+
+    public static final CompilerConfigurationKey<Boolean> IS_IR_WITH_STABLE_ABI =
+            CompilerConfigurationKey.create("Is IR with stable ABI");
 }
