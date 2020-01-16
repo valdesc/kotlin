@@ -12,7 +12,7 @@ class TimeMarkTest {
 
     @Test
     fun adjustment() {
-        val clock = TestTimeSource()
+        val timeSource = TestTimeSource()
 
         fun TimeMark.assertHasPassed(hasPassed: Boolean) {
             assertEquals(!hasPassed, this.hasNotPassedNow(), "Expected mark in the future")
@@ -21,14 +21,14 @@ class TimeMarkTest {
             assertEquals(!hasPassed, this.elapsedNow() < Duration.ZERO, "Mark elapsed: ${this.elapsedNow()}, expected hasPassed: $hasPassed")
         }
 
-        val mark = clock.markNow()
+        val mark = timeSource.markNow()
         val markFuture1 = (mark + 1.milliseconds).apply { assertHasPassed(false) }
         val markFuture2 = (mark - (-1).milliseconds).apply { assertHasPassed(false) }
 
         val markPast1 = (mark - 1.milliseconds).apply { assertHasPassed(true) }
         val markPast2 = (markFuture1 + (-2).milliseconds).apply { assertHasPassed(true) }
 
-        clock += 500_000.nanoseconds
+        timeSource += 500_000.nanoseconds
 
         val elapsed = mark.elapsedNow()
         val elapsedFromFuture = elapsed - 1.milliseconds
@@ -44,7 +44,7 @@ class TimeMarkTest {
         markFuture1.assertHasPassed(false)
         markPast1.assertHasPassed(true)
 
-        clock += 1.milliseconds
+        timeSource += 1.milliseconds
 
         markFuture1.assertHasPassed(true)
         markPast1.assertHasPassed(true)
