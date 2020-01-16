@@ -62,7 +62,7 @@ public abstract class AbstractCoroutineContextKey<K : Element, E : K>(
  * See [AbstractCoroutineContextKey] for the example of usage.
  */
 //@SinceKotlin("1.4")
-//@ExperimentalStdlinApi
+@ExperimentalStdlibApi
 public fun <E : Element> Element.getPolymorphicElement(key: Key<E>): E? {
     if (key is AbstractCoroutineContextKey<*, *>) {
         @Suppress("UNCHECKED_CAST")
@@ -80,7 +80,7 @@ public fun <E : Element> Element.getPolymorphicElement(key: Key<E>): E? {
  * See [AbstractCoroutineContextKey] for the example of usage.
  */
 //@SinceKotlin("1.4")
-//@ExperimentalStdlinApi
+@ExperimentalStdlibApi
 public fun Element.minusPolymorphicKey(key: Key<*>): CoroutineContext {
     if (key is AbstractCoroutineContextKey<*, *>) {
         return if (key.isSubKey(this.key) && key.tryCast(this) != null) EmptyCoroutineContext else this
