@@ -97,20 +97,16 @@ public class ArrayDeque<E> : AbstractMutableList<E> {
         return elementData[internalIndex] as E
     }
 
-    @kotlin.internal.InlineOnly
-    private inline fun positiveMod(index: Int): Int = if (index >= elementData.size) index - elementData.size else index
+    private fun positiveMod(index: Int): Int = if (index >= elementData.size) index - elementData.size else index
 
-    @kotlin.internal.InlineOnly
-    private inline fun negativeMod(index: Int): Int = if (index < 0) index + elementData.size else index
+    private fun negativeMod(index: Int): Int = if (index < 0) index + elementData.size else index
 
     @kotlin.internal.InlineOnly
     private inline fun internalIndex(index: Int): Int = positiveMod(head + index)
 
-    @kotlin.internal.InlineOnly
-    private inline fun incremented(index: Int): Int = if (index == elementData.size - 1) 0 else index + 1
+    private fun incremented(index: Int): Int = if (index == elementData.lastIndex) 0 else index + 1
 
-    @kotlin.internal.InlineOnly
-    private inline fun decremented(index: Int): Int = if (index == 0) elementData.size - 1 else index - 1
+    private fun decremented(index: Int): Int = if (index == 0) elementData.lastIndex else index - 1
 
     override fun isEmpty(): Boolean = size == 0
 
@@ -127,12 +123,12 @@ public class ArrayDeque<E> : AbstractMutableList<E> {
     /**
      * Returns the last element, or throws [NoSuchElementException] if this deque is empty.
      */
-    fun last(): E = if (isEmpty()) throw NoSuchElementException("ArrayDeque is empty.") else internalGet(internalIndex(size - 1))
+    fun last(): E = if (isEmpty()) throw NoSuchElementException("ArrayDeque is empty.") else internalGet(internalIndex(lastIndex))
 
     /**
      * Returns the last element, or `null` if this deque is empty.
      */
-    fun lastOrNull(): E? = if (isEmpty()) null else internalGet(internalIndex(size - 1))
+    fun lastOrNull(): E? = if (isEmpty()) null else internalGet(internalIndex(lastIndex))
 
     /**
      * Prepends the specified [element] to this deque.
@@ -179,7 +175,7 @@ public class ArrayDeque<E> : AbstractMutableList<E> {
     fun removeLast(): E {
         if (isEmpty()) throw NoSuchElementException("ArrayDeque is empty.")
 
-        val internalLastIndex = internalIndex(size - 1)
+        val internalLastIndex = internalIndex(lastIndex)
         val element = internalGet(internalLastIndex)
         elementData[internalLastIndex] = null
         size -= 1
@@ -418,7 +414,7 @@ public class ArrayDeque<E> : AbstractMutableList<E> {
             for (index in tail - 1 downTo 0) {
                 if (element == elementData[index]) return index + elementData.size - head
             }
-            for (index in elementData.size - 1 downTo head) {
+            for (index in elementData.lastIndex downTo head) {
                 if (element == elementData[index]) return index - head
             }
         }
@@ -459,7 +455,7 @@ public class ArrayDeque<E> : AbstractMutableList<E> {
             head = incremented(head)
         } else {
             // closer to the last element -> shift succeeding elements
-            val internalLastIndex = internalIndex(size - 1)
+            val internalLastIndex = internalIndex(lastIndex)
 
             if (internalIndex <= internalLastIndex) {
                 elementData.copyInto(elementData, internalIndex, internalIndex + 1, internalLastIndex + 1)
