@@ -2422,6 +2422,7 @@ public fun CharArray.random(random: Random): Char {
  * Returns a random element from this array, or `null` if it's empty.
  */
 @SinceKotlin("1.3")
+@ExperimentalStdlibApi
 @kotlin.internal.InlineOnly
 public inline fun <T> Array<out T>.randomOrNull(): T? {
     return randomOrNull(Random)
@@ -2431,6 +2432,7 @@ public inline fun <T> Array<out T>.randomOrNull(): T? {
  * Returns a random element from this array, or `null` if it's empty.
  */
 @SinceKotlin("1.3")
+@ExperimentalStdlibApi
 @kotlin.internal.InlineOnly
 public inline fun ByteArray.randomOrNull(): Byte? {
     return randomOrNull(Random)
@@ -2440,6 +2442,7 @@ public inline fun ByteArray.randomOrNull(): Byte? {
  * Returns a random element from this array, or `null` if it's empty.
  */
 @SinceKotlin("1.3")
+@ExperimentalStdlibApi
 @kotlin.internal.InlineOnly
 public inline fun ShortArray.randomOrNull(): Short? {
     return randomOrNull(Random)
@@ -2449,6 +2452,7 @@ public inline fun ShortArray.randomOrNull(): Short? {
  * Returns a random element from this array, or `null` if it's empty.
  */
 @SinceKotlin("1.3")
+@ExperimentalStdlibApi
 @kotlin.internal.InlineOnly
 public inline fun IntArray.randomOrNull(): Int? {
     return randomOrNull(Random)
@@ -2458,6 +2462,7 @@ public inline fun IntArray.randomOrNull(): Int? {
  * Returns a random element from this array, or `null` if it's empty.
  */
 @SinceKotlin("1.3")
+@ExperimentalStdlibApi
 @kotlin.internal.InlineOnly
 public inline fun LongArray.randomOrNull(): Long? {
     return randomOrNull(Random)
@@ -2467,6 +2472,7 @@ public inline fun LongArray.randomOrNull(): Long? {
  * Returns a random element from this array, or `null` if it's empty.
  */
 @SinceKotlin("1.3")
+@ExperimentalStdlibApi
 @kotlin.internal.InlineOnly
 public inline fun FloatArray.randomOrNull(): Float? {
     return randomOrNull(Random)
@@ -2476,6 +2482,7 @@ public inline fun FloatArray.randomOrNull(): Float? {
  * Returns a random element from this array, or `null` if it's empty.
  */
 @SinceKotlin("1.3")
+@ExperimentalStdlibApi
 @kotlin.internal.InlineOnly
 public inline fun DoubleArray.randomOrNull(): Double? {
     return randomOrNull(Random)
@@ -2485,6 +2492,7 @@ public inline fun DoubleArray.randomOrNull(): Double? {
  * Returns a random element from this array, or `null` if it's empty.
  */
 @SinceKotlin("1.3")
+@ExperimentalStdlibApi
 @kotlin.internal.InlineOnly
 public inline fun BooleanArray.randomOrNull(): Boolean? {
     return randomOrNull(Random)
@@ -2494,6 +2502,7 @@ public inline fun BooleanArray.randomOrNull(): Boolean? {
  * Returns a random element from this array, or `null` if it's empty.
  */
 @SinceKotlin("1.3")
+@ExperimentalStdlibApi
 @kotlin.internal.InlineOnly
 public inline fun CharArray.randomOrNull(): Char? {
     return randomOrNull(Random)
@@ -2503,6 +2512,7 @@ public inline fun CharArray.randomOrNull(): Char? {
  * Returns a random element from this array using the specified source of randomness, or `null` if it's empty.
  */
 @SinceKotlin("1.3")
+@ExperimentalStdlibApi
 public fun <T> Array<out T>.randomOrNull(random: Random): T? {
     if (isEmpty())
         return null
@@ -2513,6 +2523,7 @@ public fun <T> Array<out T>.randomOrNull(random: Random): T? {
  * Returns a random element from this array using the specified source of randomness, or `null` if it's empty.
  */
 @SinceKotlin("1.3")
+@ExperimentalStdlibApi
 public fun ByteArray.randomOrNull(random: Random): Byte? {
     if (isEmpty())
         return null
@@ -2523,6 +2534,7 @@ public fun ByteArray.randomOrNull(random: Random): Byte? {
  * Returns a random element from this array using the specified source of randomness, or `null` if it's empty.
  */
 @SinceKotlin("1.3")
+@ExperimentalStdlibApi
 public fun ShortArray.randomOrNull(random: Random): Short? {
     if (isEmpty())
         return null
@@ -2533,6 +2545,7 @@ public fun ShortArray.randomOrNull(random: Random): Short? {
  * Returns a random element from this array using the specified source of randomness, or `null` if it's empty.
  */
 @SinceKotlin("1.3")
+@ExperimentalStdlibApi
 public fun IntArray.randomOrNull(random: Random): Int? {
     if (isEmpty())
         return null
@@ -2543,6 +2556,7 @@ public fun IntArray.randomOrNull(random: Random): Int? {
  * Returns a random element from this array using the specified source of randomness, or `null` if it's empty.
  */
 @SinceKotlin("1.3")
+@ExperimentalStdlibApi
 public fun LongArray.randomOrNull(random: Random): Long? {
     if (isEmpty())
         return null
@@ -2553,6 +2567,7 @@ public fun LongArray.randomOrNull(random: Random): Long? {
  * Returns a random element from this array using the specified source of randomness, or `null` if it's empty.
  */
 @SinceKotlin("1.3")
+@ExperimentalStdlibApi
 public fun FloatArray.randomOrNull(random: Random): Float? {
     if (isEmpty())
         return null
@@ -2563,6 +2578,7 @@ public fun FloatArray.randomOrNull(random: Random): Float? {
  * Returns a random element from this array using the specified source of randomness, or `null` if it's empty.
  */
 @SinceKotlin("1.3")
+@ExperimentalStdlibApi
 public fun DoubleArray.randomOrNull(random: Random): Double? {
     if (isEmpty())
         return null
@@ -2573,6 +2589,7 @@ public fun DoubleArray.randomOrNull(random: Random): Double? {
  * Returns a random element from this array using the specified source of randomness, or `null` if it's empty.
  */
 @SinceKotlin("1.3")
+@ExperimentalStdlibApi
 public fun BooleanArray.randomOrNull(random: Random): Boolean? {
     if (isEmpty())
         return null
@@ -2583,6 +2600,7 @@ public fun BooleanArray.randomOrNull(random: Random): Boolean? {
  * Returns a random element from this array using the specified source of randomness, or `null` if it's empty.
  */
 @SinceKotlin("1.3")
+@ExperimentalStdlibApi
 public fun CharArray.randomOrNull(random: Random): Char? {
     if (isEmpty())
         return null

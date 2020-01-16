@@ -910,6 +910,7 @@ object Elements : TemplateGroupBase() {
         include(Collections, ArraysOfObjects, ArraysOfPrimitives, ArraysOfUnsigned, CharSequences, RangesOfPrimitives)
     } builder {
         since("1.3")
+        annotation("@ExperimentalStdlibApi")
         inlineOnly()
         returns("T?")
         doc {
@@ -972,6 +973,7 @@ object Elements : TemplateGroupBase() {
         include(Collections, ArraysOfObjects, ArraysOfPrimitives, ArraysOfUnsigned, CharSequences, RangesOfPrimitives)
     } builder {
         since("1.3")
+        annotation("@ExperimentalStdlibApi")
         returns("T?")
         doc {
             """

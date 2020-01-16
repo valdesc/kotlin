@@ -505,6 +505,7 @@ public fun <T> Collection<T>.random(random: Random): T {
  * Returns a random element from this collection, or `null` if it's empty.
  */
 @SinceKotlin("1.3")
+@ExperimentalStdlibApi
 @kotlin.internal.InlineOnly
 public inline fun <T> Collection<T>.randomOrNull(): T? {
     return randomOrNull(Random)
@@ -514,6 +515,7 @@ public inline fun <T> Collection<T>.randomOrNull(): T? {
  * Returns a random element from this collection using the specified source of randomness, or `null` if it's empty.
  */
 @SinceKotlin("1.3")
+@ExperimentalStdlibApi
 public fun <T> Collection<T>.randomOrNull(random: Random): T? {
     if (isEmpty())
         return null

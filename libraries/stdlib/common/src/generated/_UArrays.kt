@@ -1198,6 +1198,7 @@ public fun UShortArray.random(random: Random): UShort {
  * Returns a random element from this array, or `null` if it's empty.
  */
 @SinceKotlin("1.3")
+@ExperimentalStdlibApi
 @ExperimentalUnsignedTypes
 @kotlin.internal.InlineOnly
 public inline fun UIntArray.randomOrNull(): UInt? {
@@ -1208,6 +1209,7 @@ public inline fun UIntArray.randomOrNull(): UInt? {
  * Returns a random element from this array, or `null` if it's empty.
  */
 @SinceKotlin("1.3")
+@ExperimentalStdlibApi
 @ExperimentalUnsignedTypes
 @kotlin.internal.InlineOnly
 public inline fun ULongArray.randomOrNull(): ULong? {
@@ -1218,6 +1220,7 @@ public inline fun ULongArray.randomOrNull(): ULong? {
  * Returns a random element from this array, or `null` if it's empty.
  */
 @SinceKotlin("1.3")
+@ExperimentalStdlibApi
 @ExperimentalUnsignedTypes
 @kotlin.internal.InlineOnly
 public inline fun UByteArray.randomOrNull(): UByte? {
@@ -1228,6 +1231,7 @@ public inline fun UByteArray.randomOrNull(): UByte? {
  * Returns a random element from this array, or `null` if it's empty.
  */
 @SinceKotlin("1.3")
+@ExperimentalStdlibApi
 @ExperimentalUnsignedTypes
 @kotlin.internal.InlineOnly
 public inline fun UShortArray.randomOrNull(): UShort? {
@@ -1238,6 +1242,7 @@ public inline fun UShortArray.randomOrNull(): UShort? {
  * Returns a random element from this array using the specified source of randomness, or `null` if it's empty.
  */
 @SinceKotlin("1.3")
+@ExperimentalStdlibApi
 @ExperimentalUnsignedTypes
 public fun UIntArray.randomOrNull(random: Random): UInt? {
     if (isEmpty())
@@ -1249,6 +1254,7 @@ public fun UIntArray.randomOrNull(random: Random): UInt? {
  * Returns a random element from this array using the specified source of randomness, or `null` if it's empty.
  */
 @SinceKotlin("1.3")
+@ExperimentalStdlibApi
 @ExperimentalUnsignedTypes
 public fun ULongArray.randomOrNull(random: Random): ULong? {
     if (isEmpty())
@@ -1260,6 +1266,7 @@ public fun ULongArray.randomOrNull(random: Random): ULong? {
  * Returns a random element from this array using the specified source of randomness, or `null` if it's empty.
  */
 @SinceKotlin("1.3")
+@ExperimentalStdlibApi
 @ExperimentalUnsignedTypes
 public fun UByteArray.randomOrNull(random: Random): UByte? {
     if (isEmpty())
@@ -1271,6 +1278,7 @@ public fun UByteArray.randomOrNull(random: Random): UByte? {
  * Returns a random element from this array using the specified source of randomness, or `null` if it's empty.
  */
 @SinceKotlin("1.3")
+@ExperimentalStdlibApi
 @ExperimentalUnsignedTypes
 public fun UShortArray.randomOrNull(random: Random): UShort? {
     if (isEmpty())
