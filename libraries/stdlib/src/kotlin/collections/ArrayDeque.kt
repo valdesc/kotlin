@@ -23,7 +23,9 @@ public class ArrayDeque<E> : AbstractMutableList<E> {
 
     override var size: Int = 0
 
-    /** Constructs and empty deque. */
+    /**
+     * Constructs an empty deque with specified [initialCapacity], or throws [IllegalArgumentException] if [initialCapacity] is negative.
+     */
     constructor(initialCapacity: Int) {
         elementData = when {
             initialCapacity == 0 -> emptyElementData
@@ -32,12 +34,16 @@ public class ArrayDeque<E> : AbstractMutableList<E> {
         }
     }
 
-    /** Constructs and empty deque. */
+    /**
+     * Constructs an empty deque.
+     */
     constructor() {
         elementData = emptyElementData
     }
 
-    /** Constructs a deque that contains the same elements as the specified [elements] collection in the same order. */
+    /**
+     * Constructs a deque that contains the same elements as the specified [elements] collection in the same order.
+     */
     constructor(elements: Collection<E>) {
         elementData = elements.toTypedArray()
         size = elementData.size
@@ -75,7 +81,7 @@ public class ArrayDeque<E> : AbstractMutableList<E> {
     }
 
     /**
-     * Creates a new array with the specified [newCapacity] size and copies elementData in the [elementData] array to it.
+     * Creates a new array with the specified [newCapacity] size and copies elements in the [elementData] array to it.
      */
     private fun copyElements(newCapacity: Int) {
         val newElements = arrayOfNulls<Any?>(newCapacity)
@@ -109,22 +115,22 @@ public class ArrayDeque<E> : AbstractMutableList<E> {
     override fun isEmpty(): Boolean = size == 0
 
     /**
-     * Returns first element or throws [NoSuchElementException] if this deque is empty.
+     * Returns the first element, or throws [NoSuchElementException] if this deque is empty.
      */
     fun first(): E = if (isEmpty()) throw NoSuchElementException("ArrayDeque is empty.") else internalGet(head)
 
     /**
-     * Returns first element or `null` if this deque is empty.
+     * Returns the first element, or `null` if this deque is empty.
      */
     fun firstOrNull(): E? = if (isEmpty()) null else internalGet(head)
 
     /**
-     * Returns last element or throws [NoSuchElementException] if this deque is empty.
+     * Returns the last element, or throws [NoSuchElementException] if this deque is empty.
      */
     fun last(): E = if (isEmpty()) throw NoSuchElementException("ArrayDeque is empty.") else internalGet(internalIndex(size - 1))
 
     /**
-     * Returns last element or `null` if this deque is empty.
+     * Returns the last element, or `null` if this deque is empty.
      */
     fun lastOrNull(): E? = if (isEmpty()) null else internalGet(internalIndex(size - 1))
 
@@ -204,7 +210,7 @@ public class ArrayDeque<E> : AbstractMutableList<E> {
 
         ensureCapacity(size + 1)
 
-        // Elements in circular array may lay in 2 ways:
+        // Elements in circular array lay in 2 ways:
         //   1. `head` is less than `tail`:       [#, #, e1, e2, e3, #]
         //   2. `head` is greater than `tail`:    [e3, #, #, #, e1, e2]
         // where head is the index of the first element in the circular array,
