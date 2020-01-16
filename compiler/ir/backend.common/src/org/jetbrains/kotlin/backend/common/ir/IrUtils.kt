@@ -105,6 +105,7 @@ val IrSimpleFunction.isOverridable: Boolean
 
 val IrSimpleFunction.isOverridableOrOverrides: Boolean get() = isOverridable || overriddenSymbols.isNotEmpty()
 
+/// TODO shelve & revert this change
 // TODO should we implement more precise check: !effectively private && !effectively final?
 val IrField.isOverridable: Boolean
     get() = visibility != Visibilities.PRIVATE && !isFinal && (parent as? IrClass)?.isFinalClass == false
@@ -114,6 +115,12 @@ val IrOverridableDeclaration<*>.isOverridable: Boolean
         is IrSimpleFunction -> isOverridable
         is IrField -> isOverridable
         else -> false
+    }
+
+val IrDeclaration.isMemberOfOpenClass: Boolean
+    get() {
+        val parentClass = this.parent as? IrClass ?: return false
+        return !parentClass.isFinalClass
     }
 
 fun IrReturnTarget.returnType(context: CommonBackendContext) =

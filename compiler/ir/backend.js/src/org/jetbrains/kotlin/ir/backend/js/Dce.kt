@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.ir.backend.js
 
-import org.jetbrains.kotlin.backend.common.ir.isOverridable
+import org.jetbrains.kotlin.backend.common.ir.isMemberOfOpenClass
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.ir.backend.js.export.isExported
@@ -141,7 +141,9 @@ fun usefulDeclarations(roots: Iterable<IrDeclaration>, context: JsIrBackendConte
         1 1 1 -> _    => 3
         */
 
-        val isContagiousOverridableDeclaration = isContagious && this is IrOverridableDeclaration<*> && this.isOverridable
+        // TODO check that this is overridable
+        // it requires fixing how functions with default arguments is handled
+        val isContagiousOverridableDeclaration = isContagious && this is IrOverridableDeclaration<*> && this.isMemberOfOpenClass
 
         if (printReachabilityInfo) {
             val fromFqn = (from as? IrDeclarationWithName)?.fqNameWhenAvailable?.asString() ?: altFromFqn ?: "<unknown>"
