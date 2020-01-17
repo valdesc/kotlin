@@ -125,7 +125,7 @@ enum class LanguageFeature(
     AllowReifiedGenericsInContracts(KOTLIN_1_4),
     ProperVisibilityForCompanionObjectInstanceField(KOTLIN_1_4, kind = BUG_FIX),
     DoNotGenerateThrowsForDelegatedKotlinMembers(KOTLIN_1_4),
-    FunctionInterfaceConversion(KOTLIN_1_4, kind = UNSTABLE_FEATURE),
+    FunctionalInterfaceConversion(KOTLIN_1_4, kind = UNSTABLE_FEATURE),
 
     // Temporarily disabled, see KT-27084/KT-22379
     SoundSmartcastFromLoopConditionForLoopAssignedVariables(sinceVersion = null, kind = BUG_FIX),
